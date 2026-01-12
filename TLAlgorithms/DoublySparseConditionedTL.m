@@ -1,4 +1,4 @@
-function [T, XT, error, error2, sty_pct] = DoublySparseConditionedTL(T, Y, numiter, STY, rho, tau, lambda)
+function [T, XT, error, error2, sty_pct, sty_vec] = DoublySparseConditionedTL(T, Y, numiter, STY, rho, tau, lambda)
     addpath('TLAlgorithms/DoublyConditionedTLRoutines/');
 
     rng(0);
@@ -17,6 +17,7 @@ function [T, XT, error, error2, sty_pct] = DoublySparseConditionedTL(T, Y, numit
 
     error = zeros(1, numiter);
     error2 = zeros(1, numiter);
+    sty_vec = zeros(1, numiter);
 
     D_ant = zeros(n, n);
     T_ant = zeros(n, n);
@@ -97,6 +98,9 @@ function [T, XT, error, error2, sty_pct] = DoublySparseConditionedTL(T, Y, numit
 
         T = T_curr;
 
+        total = numel(T);           
+        num_zero = nnz(T(:) == 0);
+        sty_vec(i - 1) = 100 * num_zero / total;
         error(i - 1) = norm(X - T_curr * Y, 'fro');
         error2(i - 1) = norm(X - T_curr * Y, 'fro') / norm(T_curr * Y, 'fro');
     end

@@ -77,7 +77,7 @@ fprintf('Unstructured Conditioned Method Done\n');
 
 %%%%%%%%%%%%%%%%%%%%%%% Structured Conditioned Method %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-[T_doubly_cond, X_doubly_cond, error_doubly_cond, error2_doubly_cond, sty_pct] = DoublySparseConditionedTL(W0, YH2 ,numiter, STY, rho, tau, lambda);
+[T_doubly_cond, X_doubly_cond, error_doubly_cond, error2_doubly_cond, sty_pct, sty_vec] = DoublySparseConditionedTL(W0, YH2 ,numiter, STY, rho, tau, lambda);
 fprintf('Structured Conditioned Method with %.2f%% Sparsity Done\n', sty_pct);
 
 
@@ -89,3 +89,4 @@ errors2 = {error2_dct, error2_bresler, error2_cond, error2_doubly_cond};
 labels = {'DCT', "Bresler Method", "Conditioned Unstructured", "Conditioned Structured"};
 
 plot_convergence(numiter, errors, errors2, labels, rho, tau, T0);
+plot_sparsity(numiter, error_doubly_cond, sty_vec, rho, tau, lambda, T0);
