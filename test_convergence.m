@@ -17,6 +17,12 @@ lambda = 0.00001;                             % penalization parameter for \ell_
 
 lambda0 = 1.1e-8;                             % Bresler Method parameter
 
+% Bresler Doubly Sparse Transform parameters
+% T1 = round((0.25)*(n^2));                     % Bresler Doubly Sparse Transform sparsity percent
+% B0 = eye(n); 
+% mu = 2e-9; 
+% numg = 30; 
+% cbb = 0; stopcn = 0; stopth = 0;
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Data Loading and Preparation %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -68,6 +74,12 @@ fprintf('Bresler Method Done\n');
 % set rho and tau based on Bresler Learnt Transform for Explicitly Conditioned Methods
 rho = cond(B_bresler);
 tau = norm(B_bresler,'fro');
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%% Structured Bresler Method %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% [W_bresler_doubly, X_bresler_doubly, error_bresler_doubly, error2_bresler_doubly] = BreslerDoublySparseTL(B0, YH2, numiter, l2_bresler, l3_bresler, T1, mu, numg, STY, cbb, stopcn, stopth);
+% fprintf('Structured Bresler Method Done\n');
 
 
 %%%%%%%%%%%%%%%%%%%%%%% Unstructured Conditioned Method %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

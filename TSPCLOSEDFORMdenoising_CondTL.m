@@ -59,6 +59,15 @@ r = paramsin.r;
 Wbresles = W;
 Wlast = W;
 
+% params for Doubly Sparse Bresler
+B = paramsin.B;
+T1 = paramsin.T1;
+mu = paramsin.mu;
+numgradd = paramsin.numgradd;
+cbbv = paramsin.cbbv;
+stopcn = paramsin.stopcn;
+stopth = paramsin.stopth;
+
 threshold=C1*sig*(sqrt(n)); %\ell_2 error threshold (maximum allowed norm of the difference between a noisy patch and its denoised version) per patch
 
 %Initial steps
@@ -85,7 +94,6 @@ STY =(ones(1,N3))*(T0);  %Vector of initial sparsity levels
 
 YH2 = W0 * YH;
 
-
 %Begin iterations of the two-step denoising algorithm
 for ppp=1:iterx
     
@@ -100,6 +108,8 @@ for ppp=1:iterx
         [W]= TLORTHO(Wlast,YH,numiterr,STY);  %Orthonormal Transform Learning
     elseif(strcmp(paramsin.method, 'ConditionedTransformLearning'))
     	[W,~,~]= ConditionedTransformLearning(Wlast,YH,numiterr,STY,condW,froW);
+    elseif(strcmp(paramsin.method, 'BreslerDoublySparse'))
+    	[W,~,~,~,~]= BreslerDoublySparseTL(B,YH2,numiterr,l2,l3,T1,mu,numgradd,STY,cbbv,stopcn,stopth);
     elseif(strcmp(paramsin.method, 'DoublySparseConditionedTL'))
     	[W,~,~]= DoublySparseConditionedTL(Wlast,YH2,numiterr,STY,condW,froW, lambda);
         W = W * W0;

@@ -33,7 +33,7 @@ load I1  %noisy image
 load I7  %noiseless reference
 
 % methods to try denoising with
-methods = {'DoublySparseConditionedTL', 'ConditionedTransformLearning', 'Bresler', 'TLORTHO'};
+methods = {'DoublySparseConditionedTL', 'ConditionedTransformLearning', 'Bresler', 'BreslerDoublySparse', 'TLORTHO'};
 n_methods = length(methods);
 
 sig=sigma;  %standard deviation of Gaussian noise
@@ -66,6 +66,13 @@ paramsin.maxsparsity = round(6*s);
 paramsin.method = 0;
 paramsin.lambda0 = 0.0031;
 paramsin.lambda = 0.0005;
+paramsin.T1 = round((0.2)*(n^2));
+paramsin.mu = 9e-10;
+paramsin.numgradd = 30;
+paramsin.cbbv = [20 2*ones(1,iter-1)];
+paramsin.stopcn = 1;
+paramsin.stopth = 0.001;
+paramsin.B = eye(n);
 paramsin.W = kron(dctmtx(sqrt(n)),dctmtx(sqrt(n)));
 paramsin.r = 1;
 

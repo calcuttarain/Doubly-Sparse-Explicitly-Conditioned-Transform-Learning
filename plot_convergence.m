@@ -1,7 +1,7 @@
 function plot_convergence(numiter, errors, errors2, labels, kappa, tau, T)
     figure('Position', [100, 100, 1000, 400]);
 
-    colors = {'r--', 'k-', 'b-', 'r-'}; 
+    colors = {'k-', 'c-', 'b-', 'r-'}; 
     n_methods = length(labels);
 
     % regular error
