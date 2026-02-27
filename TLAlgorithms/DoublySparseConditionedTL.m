@@ -96,18 +96,22 @@ function [T, XT, error, error2, sty_pct, sty_vec] = DoublySparseConditionedTL(T,
         lambdas = get_spectrum_doubly(L, rho, tau);
         T_curr = Q * diag(lambdas) * Q';
 
+        % clipping
+        indices = abs(T_curr) <= 10e-7;
+        T_curr(indices) = 0;
+
         T = T_curr;
 
         total = numel(T);           
-        num_zero = nnz(T(:) == 0);
-        sty_vec(i - 1) = 100 * num_zero / total;
+        curr_sty = nnz(T(:) ~= 0);
+        sty_vec(i - 1) = 100 * curr_sty / total;
         error(i - 1) = norm(X - T_curr * Y, 'fro');
         error2(i - 1) = norm(X - T_curr * Y, 'fro') / norm(T_curr * Y, 'fro');
     end
 
     total = numel(T);           
-    num_zero = nnz(T(:) == 0);  
-    sty_pct = 100 * num_zero / total;   
+    curr_sty = nnz(T(:) ~= 0);  
+    sty_pct = 100 * curr_sty / total;   
 
     XT(:, ix) = X;
 end

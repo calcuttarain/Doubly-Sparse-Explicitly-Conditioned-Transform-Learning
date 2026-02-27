@@ -5,15 +5,15 @@ addpath('TLAlgorithms/');
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Set parameters %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-n = 64;                                       % patch size 
+n = 16;                                       % patch size 
 
 T0 = 6;                                       % sparsity level for each representation
 
-numiter = 900;                                % Number of iterations for AM algorithm
+numiter = 2000;                               % Number of iterations for AM algorithm
 
 W0 = kron(dctmtx(sqrt(n)), dctmtx(sqrt(n)));  % 2D DCT initialization, canonical transform factor
 
-lambda = 0.0005;                              % penalization parameter for \ell_1 norm on T
+lambda = 0.00001;                             % penalization parameter for \ell_1 norm on T
 
 lambda0 = 1.1e-8;                             % Bresler Method parameter
 
@@ -33,6 +33,7 @@ lena = struct2cell(load('data/lena.mat')); lena = lena{1};
 
 % concatenate
 [blocks] = [blocks_barbara, blocks_couple, blocks_lena];
+blocks = blocks(1:16, :);
 
 % subtract the means
 br = mean(blocks);
@@ -89,4 +90,4 @@ errors2 = {error2_dct, error2_bresler, error2_cond, error2_doubly_cond};
 labels = {'DCT', "Bresler Method", "Conditioned Unstructured", "Conditioned Structured"};
 
 plot_convergence(numiter, errors, errors2, labels, rho, tau, T0);
-plot_sparsity(numiter, error_doubly_cond, sty_vec, rho, tau, lambda, T0);
+plot_sparsity(T_doubly_cond, numiter, error_doubly_cond, sty_vec, rho, tau, lambda, T0);
