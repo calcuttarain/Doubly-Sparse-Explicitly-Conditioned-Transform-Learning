@@ -9,7 +9,7 @@ n = 16;                                       % patch size
 
 T0 = 6;                                       % sparsity level for each representation
 
-numiter = 2;                               % Number of iterations for AM algorithm
+numiter = 2000;                               % Number of iterations for AM algorithm
 
 W0 = kron(dctmtx(sqrt(n)), dctmtx(sqrt(n)));  % 2D DCT initialization, canonical transform factor
 

@@ -53,7 +53,6 @@ function [T, XT, error, error2, sty_pct, sty_vec] = DoublySparseConditionedTL(T,
 
             T_curr = U * diag(sigmas) * V';
 
-
             % one unconstrained gradient step
             D_curr = (T_curr * Y - X) * Y';
 
@@ -63,6 +62,18 @@ function [T, XT, error, error2, sty_pct, sty_vec] = DoublySparseConditionedTL(T,
             % compute the transform
             T_ant = T_curr;
             T_curr = T_curr - alpha * D_curr;
+
+            % choose starting lambda for \ell_1 regularization term
+
+            T_temp = (T_curr + T_curr') / 2; 
+
+            [Q, L] = eig(T_temp);
+            lambdas = get_spectrum_doubly(L, rho, tau);
+            T_temp = Q * diag(lambdas) * Q';
+
+            lambda_start = 0.1 * max(max(abs(T_temp)))
+
+            decreasing_lambdas = linspace(lambda_start, lambda, numiter);
 
             continue;
         end
@@ -87,7 +98,7 @@ function [T, XT, error, error2, sty_pct, sty_vec] = DoublySparseConditionedTL(T,
         T_curr = T_curr - alpha * D_curr;
 
         % soft-thersholding
-        T_curr = sign(T_curr) .* max(abs(T_curr) - lambda, 0);
+        T_curr = sign(T_curr) .* max(abs(T_curr) - decreasing_lambdas(i - 1), 0);
 
         % projection onto feasible space
         T_curr = (T_curr + T_curr') / 2; % symmetry
