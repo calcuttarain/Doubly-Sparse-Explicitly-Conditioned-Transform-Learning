@@ -13,7 +13,7 @@
 % ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 % OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-function [W,XB,error,error2] = ConditionedTransformLearning(W,Y,numiter, STY, kappa, targetWnorm)
+function [W,XB,error] = ConditionedTransformLearning(W, Y, Y_test, numiter, STY, STY_te, kappa, targetWnorm)
     addpath('TLAlgorithms/ConditionedTLRoutines/');
 
 % Implementation adapted on the transform learning framework from the series of
@@ -44,8 +44,12 @@ ix=find(STY>0); q=Y(:,ix); STY=STY(:,ix); N=size(q,2);
 ez=K*(0:(N-1));STY=STY + ez;
 Y = Y(:, ix);
 
-error = [];
-error2 = [];
+ix_te=find(STY_te>0); q_te=Y_test(:,ix_te); STY_te=STY_te(:,ix_te); N_te=size(q_te,2);
+ez_te=K*(0:(N_te-1));STY_te=STY_te + ez_te;
+Y_test = Y_test(:, ix_te);
+
+error.m1.tr = []; error.m1.te = [];
+error.m2.tr = []; error.m2.te = [];
 kappas = [];
 
 %Algorithm iterations in a FOR Loop
@@ -55,6 +59,10 @@ for i=1:numiter
     X1=W*q;
     [s]=sort(abs(X1),'descend');
     X = X1.*(bsxfun(@ge,abs(X1),s(STY)));
+
+    X1_te=W*q_te;
+    [s_te]=sort(abs(X1_te),'descend');
+    X_test = X1_te.*(bsxfun(@ge,abs(X1_te),s_te(STY_te)));
     
     %Transform Update Step
     if isempty(kappas)
@@ -88,8 +96,11 @@ for i=1:numiter
     W = U*diag(d_cvx)*V';
     W = W/norm(W, 'fro')*targetWnorm;
     
-    error = [error norm(X - W*Y, 'fro')];
-    error2 = [error2 norm(X - W*Y, 'fro')/norm(W*Y, 'fro')];
+    error.m1.tr = [error.m1.tr norm(X - W*Y, 'fro')];
+    error.m2.tr = [error.m2.tr norm(X - W*Y, 'fro')/norm(W*Y, 'fro')];
+
+    error.m1.te = [error.m1.te norm(X_test - W*Y_test, 'fro')];
+    error.m2.te = [error.m2.te norm(X_test - W*Y_test, 'fro')/norm(W*Y_test, 'fro')];
     if (i == 84)
         stop = 1;
     end

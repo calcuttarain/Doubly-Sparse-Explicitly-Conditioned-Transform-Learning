@@ -1,4 +1,4 @@
-function [W,XB,error,error2]= TLclosedformmethod(W,Y,numiter,l2,l3,STY)
+function [W,XB,error]= TLclosedformmethod(W,Y,Y_test,numiter,l2,l3,STY, STY_te)
 
 %This is an implementation of the transform learning algorithm with closed-form solutions for the sparse coding and transform update steps that was presented in the following papers:
 %1) S. Ravishankar and Y. Bresler, "Closed-form solutions within sparsifying transform learning," in Proc. IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP), 2013, pp. 5378-5382.
@@ -35,8 +35,12 @@ ix=find(STY>0); q=Y(:,ix); STY=STY(:,ix); N=size(q,2);
 ez=K*(0:(N-1));STY=STY + ez;
 Y = Y(:, ix);
 
-error = [];
-error2 = [];
+ix_te=find(STY_te>0); q_te=Y_test(:,ix_te); STY_te=STY_te(:,ix_te); N_te=size(q_te,2);
+ez_te=K*(0:(N_te-1));STY_te=STY_te + ez_te;
+Y_test = Y_test(:, ix_te);
+
+error.m1.tr = []; error.m1.te = [];
+error.m2.tr = []; error.m2.te = [];
 
 %Algorithm iterations in a FOR Loop
 for i=1:numiter
@@ -45,6 +49,10 @@ for i=1:numiter
     X1=W*q;
     [s]=sort(abs(X1),'descend');
     X = X1.*(bsxfun(@ge,abs(X1),s(STY)));
+
+    X1_te=W*q_te;
+    [s_te]=sort(abs(X1_te),'descend');
+    X_test = X1_te.*(bsxfun(@ge,abs(X1_te),s_te(STY_te)));
 %     X = X/norm(X, 'fro');
     
     %Transform Update Step
@@ -56,7 +64,10 @@ for i=1:numiter
 %     W = normc(W);
 %     W = sqrt(n)*W/norm(W, 'fro');
     
-    error = [error norm(X - W*Y, 'fro')];
-    error2 = [error2 norm(X - W*Y, 'fro')/norm(W*Y, 'fro')];
+    error.m1.tr = [error.m1.tr norm(X - W*Y, 'fro')];
+    error.m2.tr = [error.m2.tr norm(X - W*Y, 'fro')/norm(W*Y, 'fro')];
+
+    error.m1.te = [error.m1.te norm(X_test - W*Y_test, 'fro')];
+    error.m2.te = [error.m2.te norm(X_test - W*Y_test, 'fro')/norm(W*Y_test, 'fro')];
 end
 XB(:,ix)=X;

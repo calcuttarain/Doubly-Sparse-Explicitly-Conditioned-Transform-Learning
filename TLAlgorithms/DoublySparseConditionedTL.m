@@ -1,4 +1,4 @@
-function [T, XT, error, error2, sty_pct, sty_vec] = DoublySparseConditionedTL(T, Y, numiter, STY, rho, tau, lambda)
+function [T, XT, error, sty_pct, sty_vec] = DoublySparseConditionedTL(T, Y, Y_test, numiter, STY, STY_te, rho, tau, lambda)
     addpath('TLAlgorithms/DoublyConditionedTLRoutines/');
 
     rng(0);
@@ -6,17 +6,19 @@ function [T, XT, error, error2, sty_pct, sty_vec] = DoublySparseConditionedTL(T,
     [K, n] = size(T); 
     XT = zeros(K, size(Y, 2)); 
 
-    ix = find(STY > 0);
-    q = Y(:, ix);
-    STY = STY(:, ix); 
-    N = size(q, 2); 
+    ix = find(STY > 0); ix_te = find(STY_te > 0);
+    q = Y(:, ix); q_te = Y_test(:, ix_te);
+    STY = STY(:, ix); STY_te = STY_te(:, ix_te);
+    N = size(q, 2); N_te = size(q_te, 2); 
 
-    ez = K * (0:(N-1)); 
-    STY = STY + ez; 
-    Y = Y(:, ix);
+    ez = K * (0:(N-1)); ez_te = K * (0:(N_te-1)); 
+    STY = STY + ez; STY_te = STY_te + ez_te;
+    Y = Y(:, ix); Y_test = Y_test(:, ix_te);
 
-    error = zeros(1, numiter);
-    error2 = zeros(1, numiter);
+    %Y_pinv = pinv(Y);
+
+    error.m1.tr = zeros(1, numiter); error.m1.te = zeros(1, numiter);
+    error.m2.tr = zeros(1, numiter); error.m2.te = zeros(1, numiter);
     sty_vec = zeros(1, numiter);
 
     D_ant = zeros(n, n);
@@ -28,10 +30,10 @@ function [T, XT, error, error2, sty_pct, sty_vec] = DoublySparseConditionedTL(T,
 
     for i = 1:numiter + 1
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Sparse Representation Update Step %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-        X1 = T_curr * q;
-        [s] = sort(abs(X1), 'descend');
+        X1 = T_curr * q; X1_te = T_curr * q_te;
+        [s] = sort(abs(X1), 'descend'); [s_te] = sort(abs(X1_te), 'descend');
 
-        X = X1 .* (bsxfun(@ge, abs(X1), s(STY)));
+        X = X1 .* (bsxfun(@ge, abs(X1), s(STY))); X_test = X1_te .* (bsxfun(@ge, abs(X1_te), s_te(STY_te)));
 
 
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Transform Update Step %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -71,7 +73,7 @@ function [T, XT, error, error2, sty_pct, sty_vec] = DoublySparseConditionedTL(T,
             lambdas = get_spectrum_doubly(L, rho, tau);
             T_temp = Q * diag(lambdas) * Q';
 
-            lambda_start = 0.1 * max(max(abs(T_temp)))
+            lambda_start = 0.1 * max(max(abs(T_temp)));
 
             decreasing_lambdas = linspace(lambda_start, lambda, numiter);
 
@@ -82,7 +84,7 @@ function [T, XT, error, error2, sty_pct, sty_vec] = DoublySparseConditionedTL(T,
         beta = (t_ant - 1) / t_curr;
 
         T_curr = T_curr + beta * (T_curr - T_ant);
-
+  
         t_ant = t_curr;
         t_curr = (1 + sqrt(1 + 4 * t_ant^2)) / 2;
 
@@ -96,6 +98,7 @@ function [T, XT, error, error2, sty_pct, sty_vec] = DoublySparseConditionedTL(T,
         % compute the transform
         T_ant = T_curr;
         T_curr = T_curr - alpha * D_curr;
+        %T_curr = X * Y_pinv; % exact solution
 
         % soft-thersholding
         T_curr = sign(T_curr) .* max(abs(T_curr) - decreasing_lambdas(i - 1), 0);
@@ -116,8 +119,12 @@ function [T, XT, error, error2, sty_pct, sty_vec] = DoublySparseConditionedTL(T,
         total = numel(T);           
         curr_sty = nnz(T(:) ~= 0);
         sty_vec(i - 1) = 100 * curr_sty / total;
-        error(i - 1) = norm(X - T_curr * Y, 'fro');
-        error2(i - 1) = norm(X - T_curr * Y, 'fro') / norm(T_curr * Y, 'fro');
+
+        error.m1.tr(i - 1) = norm(X - T_curr * Y, 'fro');
+        error.m2.tr(i - 1) = norm(X - T_curr * Y, 'fro') / norm(T_curr * Y, 'fro');
+
+        error.m1.te(i - 1) = norm(X_test - T_curr * Y_test, 'fro');
+        error.m2.te(i - 1) = norm(X_test - T_curr * Y_test, 'fro') / norm(T_curr * Y_test, 'fro');
     end
 
     total = numel(T);           

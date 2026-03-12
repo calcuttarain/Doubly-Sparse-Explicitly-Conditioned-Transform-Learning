@@ -2,7 +2,7 @@ function alpha = get_alpha(T_curr, D_curr, T_ant, D_ant, Y, alpha_choice)
     switch alpha_choice
 
         case "exact_line_search"
-            alpha_eln = 0.25 * norm(D_curr, 'fro')^2 / norm(D_curr * Y, 'fro')^2;
+            alpha_eln = norm(D_curr, 'fro')^2 / norm(D_curr * Y, 'fro')^2;
 
             alpha = alpha_eln;
 

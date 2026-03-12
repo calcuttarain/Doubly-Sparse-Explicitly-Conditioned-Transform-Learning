@@ -1,8 +1,8 @@
-function [B,XB,i,error,error2]= BreslerDoublySparseTL(B,Y,numiter,l2,l3,T1,mu,numgrad,STY,cbb,stopcn,stopth)
+function [B,XB,i,error]= BreslerDoublySparseTL(B,Y,Y_test,numiter,l2,l3,T1,mu,numgrad,STY,STY_te,cbb,stopcn,stopth)
 
 %This is an implementation of a transform learning algorithm that was presented in the following papers:
-%1) S. Ravishankar and Y. Bresler, Learning doubly sparse transforms for images, IEEE Transactions on Image Processing, vol. 22, no. 12, pp. 4598-4612, Dec. 2013.
-%2) S. Ravishankar and Y. Bresler, Learning doubly sparse transforms for image representation, in IEEE International Conference on Image Processing (ICIP), 2012, pp. 685-688.
+%1) S. Ravishankar and Y. Bresler, �Learning doubly sparse transforms for images,� IEEE Transactions on Image Processing, vol. 22, no. 12, pp. 4598-4612, Dec. 2013.
+%2) S. Ravishankar and Y. Bresler, �Learning doubly sparse transforms for image representation,� in IEEE International Conference on Image Processing (ICIP), 2012, pp. 685-688.
 
 %We employ alternating minimization here to solve a transform learning problem that involves a constraint on the adaptive transform domain sparsity of each training signal, 
 %a constraint on the sparsity of the matrix B in  the decomposition W = B*\Phi, and a transform learning regularizer that involves a log-determinant penalty and a Frobenius norm penalty.
@@ -35,11 +35,16 @@ function [B,XB,i,error,error2]= BreslerDoublySparseTL(B,Y,numiter,l2,l3,T1,mu,nu
 
 ix=find(STY>0); q=Y(:,ix); STY=STY(:,ix); N=size(q,2); 
 ez=K*(0:(N-1));STY=STY + ez;
+Y = Y(:, ix);
+
+ix_te=find(STY_te>0); q_te=Y_test(:,ix_te); STY_te=STY_te(:,ix_te); N_te=size(q_te,2);
+ez_te=K*(0:(N_te-1));STY_te=STY_te + ez_te;
+Y_test = Y_test(:, ix_te);
 
 ZX=Y*Y'; %pre-computed for transform update step
 
-error = [];
-error2 = [];
+error.m1.tr = []; error.m1.te = [];
+error.m2.tr = []; error.m2.te = [];
 
 %Algorithm iterations in a FOR Loop
 for i=1:numiter
@@ -48,6 +53,10 @@ for i=1:numiter
     X1=(sparse(B))*q;
     [s]=sort(abs(X1),'descend');
     X = X1.*(bsxfun(@ge,abs(X1),s(STY)));
+
+    X1_te=(sparse(B))*q_te;
+    [s_te]=sort(abs(X1_te),'descend');
+    X_test = X1_te.*(bsxfun(@ge,abs(X1_te),s_te(STY_te)));
            
     %%%%%%Transform Update Step%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
            RSu=(q*X')';
@@ -87,8 +96,8 @@ for i=1:numiter
              B = B + ((rand(K,n) - 0.5)*cll);               
            end
 
-           error = [error norm(X - B*q, 'fro')];
-           error2 = [error2 norm(X - B*q, 'fro')/norm(B*q, 'fro')];
+           indices = abs(B) <= 10e-7;
+           B(indices) = 0;
           
            
            
@@ -97,7 +106,11 @@ if(stopcn==1)
    sh=(norm(B-Bgh,'fro'))/(norm(Bgh,'fro'));
    Bgh=B;
 end
+error.m1.tr = [error.m1.tr norm(X - B*Y, 'fro')];
+error.m2.tr = [error.m2.tr norm(X - B*Y, 'fro')/norm(B*Y, 'fro')];
 
+error.m1.te = [error.m1.te norm(X_test - B*Y_test, 'fro')];
+error.m2.te = [error.m2.te norm(X_test - B*Y_test, 'fro')/norm(B*Y_test, 'fro')];
 %Check the stopping condition when the stopping criterion parameter is active.
 if(stopcn==1)
 if(i>cbb)
@@ -109,4 +122,3 @@ end
     
 end
 XB(:,ix)=X;
-
