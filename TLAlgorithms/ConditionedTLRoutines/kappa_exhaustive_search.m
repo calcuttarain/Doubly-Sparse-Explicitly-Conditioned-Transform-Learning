@@ -16,6 +16,8 @@
 function [k1, k2, l_star] = kappa_exhaustive_search(r_over_d, d, r, kappa)
 n = length(r_over_d);
 
+local_epsilon = 10e-3;
+
 if r_over_d(1)/r_over_d(end) <= kappa
     k1 = 0; k2 = 0; l_star = 0;
     return;
@@ -28,13 +30,13 @@ for k2 = 1:n-1
         
         y = 0;
         
-        if r_over_d(end-k1) - 10e-3 >= l_star
+        if r_over_d(end-k1) - local_epsilon >= l_star
             y = 1;
         else
             y = 0;
         end
         
-        if r_over_d(k2+1) - 10e-3 > u_star
+        if r_over_d(k2+1) - local_epsilon > u_star
            y = 0;
         end 
         
