@@ -9,7 +9,7 @@ n = 16;                                       % patch size
 
 T0 = 6;                                       % sparsity level for each representation
 
-numiter = 2000;                               % Number of iterations for AM algorithm
+numiter = 2;                               % Number of iterations for AM algorithm
 
 W0 = kron(dctmtx(sqrt(n)), dctmtx(sqrt(n)));  % 2D DCT initialization, canonical transform factor
 
@@ -28,14 +28,24 @@ lambda0 = 1.1e-8;                             % Bresler Method parameter
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Data Loading and Preparation %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % load training set
-barbara = struct2cell(load('data/barbara.mat')); barbara = barbara{1}; 
-couple = struct2cell(load('data/couple.mat')); couple = couple{1}; 
-lena = struct2cell(load('data/lena.mat')); lena = lena{1}; 
+barbara = struct2cell(load('img/Barbara/sigma5/I7.mat')); barbara = barbara{1}; 
+couple = struct2cell(load('img/Couple/sigma5/I7.mat')); couple = couple{1}; 
+lena = struct2cell(load('img/Lena/sigma5/I7.mat')); lena = lena{1}; 
+cameraman = struct2cell(load('img/Cameraman/sigma5/I7.mat')); cameraman = cameraman{1}; 
+hill = struct2cell(load('img/Hill/sigma5/I7.mat')); hill = hill{1}; 
+man = struct2cell(load('img/Man/sigma5/I7.mat')); man = man{1}; 
+mri = struct2cell(load('img/MRI/sigma5/I7.mat')); mri = mri{1}; 
+baboon = struct2cell(load('img/Baboon/sigma5/I7.mat')); baboon = baboon{1}; 
 
 % vectorize
 [blocks_barbara] = my_im2col(barbara, [sqrt(n), sqrt(n)], sqrt(n));
 [blocks_couple] = my_im2col(couple, [sqrt(n), sqrt(n)], sqrt(n));
 [blocks_lena] = my_im2col(lena, [sqrt(n), sqrt(n)], sqrt(n));
+[blocks_cameraman] = my_im2col(cameraman, [sqrt(n), sqrt(n)], sqrt(n));
+[blocks_hill] = my_im2col(hill, [sqrt(n), sqrt(n)], sqrt(n));
+[blocks_man] = my_im2col(man, [sqrt(n), sqrt(n)], sqrt(n));
+[blocks_mri] = my_im2col(mri, [sqrt(n), sqrt(n)], sqrt(n));
+[blocks_baboon] = my_im2col(baboon, [sqrt(n), sqrt(n)], sqrt(n));
 
 % concatenate
 [blocks] = [blocks_barbara, blocks_couple, blocks_lena];
