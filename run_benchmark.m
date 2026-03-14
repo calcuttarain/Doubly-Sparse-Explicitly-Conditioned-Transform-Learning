@@ -1,7 +1,14 @@
 clear; clc; close all;
 addpath('TLAlgorithms/');
+addpath('utils/');
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Set parameters %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+methods = {'structured_bresler_cf', 'unstructured_conditioned', 'structured_conditioned'};
+
+% train / test sets
+train_set = {'Barbara', 'Couple', 'Lena'};
+test_set  = {'Hill', 'Man'};
 
 n = 64;                                            % patch size 
 
@@ -26,10 +33,6 @@ tol_sty_pct = 1;                                   % sparsity percent tolerance
 lambda_min = 1e-10;                                % left endpoint of search interval
 lambda_max = 1e3;                                  % right endpoint of search interval
 
-% training
-train_set = {'Barbara', 'Couple', 'Lena'};
-test_set  = {'Hill', 'Man'};
-
 % save
 paramsin.n = n;
 paramsin.T0 = T0;
@@ -50,6 +53,7 @@ paramsin.tol_sty_pct = tol_sty_pct;
 paramsin.train_set = train_set;
 paramsin.test_set = test_set;
 paramsin.rng_state = rng;
+paramsin.methods = methods;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Data Loading and Preparation %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -98,9 +102,9 @@ STY_tr = T0 * ones(1, size(YH_train, 2)); STY_te = T0 * ones(1, size(YH_test, 2)
 l2_bresler = lambda0 * (norm(YH_train, 'fro'))^2;
 l3_bresler = l2_bresler;
 
-%[W_bresler_doubly, X_bresler_doubly, ~, error_bresler_doubly] = BreslerDoublySparseTL(B0, YH2_train, YH2_test, numiter, l2_bresler, l3_bresler, T1, mu, numg, STY_tr, STY_te, cbb, stopcn, stopth);
+%[W_bresler_doubly, X_bresler_doubly, ~, error_bresler_doubly] = StructuredBresler(B0, YH2_train, YH2_test, numiter, l2_bresler, l3_bresler, T1, mu, numg, STY_tr, STY_te, cbb, stopcn, stopth);
 tic;
-[W_bresler_doubly_cf, X_bresler_doubly_cf, error_bresler_doubly_cf] = ClosedFormBreslerDoublySparse(B0, YH2_train, YH2_test, numiter, l2_bresler, l3_bresler, T1, STY_tr, STY_te, cbb);
+[W_bresler_doubly_cf, X_bresler_doubly_cf, error_bresler_doubly_cf] = StructuredBreslerCF(B0, YH2_train, YH2_test, numiter, l2_bresler, l3_bresler, T1, STY_tr, STY_te, cbb);
 time_bresler_doubly_cf = toc;
 
 % set rho and tau based on Bresler Learnt Transform for Explicitly Conditioned Methods
@@ -118,28 +122,28 @@ paramsin.l3_bresler = l3_bresler;
 paramsin.rho = rho;
 paramsin.tau = tau;
 
-paramsout.structured_bresler_cf.transform = sparse(W_bresler_doubly_cf);
-paramsout.structured_bresler_cf.sparse_representation = sparse(X_bresler_doubly_cf);
-paramsout.structured_bresler_cf.error = error_bresler_doubly_cf;
-paramsout.structured_bresler_cf.time = time_bresler_doubly_cf;
+paramsout.(methods{1}).transform = sparse(W_bresler_doubly_cf);
+paramsout.(methods{1}).sparse_representation = sparse(X_bresler_doubly_cf);
+paramsout.(methods{1}).error = error_bresler_doubly_cf;
+paramsout.(methods{1}).time = time_bresler_doubly_cf;
 
 %%%%%%%%%%%%%%%%%%%%%%% Unstructured Conditioned Method %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 tic;
-[W_cond, X_cond, error_cond] = ConditionedTransformLearning(W0, YH_train, YH_test, numiter, STY_tr, STY_te, rho, tau);
+[W_cond, X_cond, error_cond] = UnstructuredConditioned(W0, YH_train, YH_test, numiter, STY_tr, STY_te, rho, tau);
 time_cond = toc;
 
-paramsout.unstructured_conditioned.transform = W_cond;
-paramsout.unstructured_conditioned.sparse_representation = sparse(X_cond);
-paramsout.unstructured_conditioned.error = error_cond;
-paramsout.unstructured_conditioned.time = time_cond;
+paramsout.(methods{2}).transform = W_cond;
+paramsout.(methods{2}).sparse_representation = sparse(X_cond);
+paramsout.(methods{2}).error = error_cond;
+paramsout.(methods{2}).time = time_cond;
 
 %%%%%%%%%%%%%%%%%%%%%%% Structured Conditioned Method %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 for iter = 1:max_iter
     lambda_mid = exp((log(lambda_min) + log(lambda_max)) / 2);
 
     tic;
-    [T_doubly_cond, X_doubly_cond, error_doubly_cond, sty_pct, sty_vec] = DoublySparseConditionedTL(W0, YH2_train, YH2_test, numiter, STY_tr, STY_te, rho, tau, lambda_mid);
+    [T_doubly_cond, X_doubly_cond, error_doubly_cond, sty_pct, sty_vec] = StructuredConditioned(W0, YH2_train, YH2_test, numiter, STY_tr, STY_te, rho, tau, lambda_mid);
     time_doubly_cond = toc;
 
     if abs(sty_pct - target_sty_pct) <= tol_sty_pct
@@ -156,12 +160,14 @@ for iter = 1:max_iter
 
 end
 
-paramsout.structured_conditioned.transform = sparse(T_doubly_cond);
-paramsout.structured_conditioned.sparse_representation = sparse(X_doubly_cond);
-paramsout.structured_conditioned.error = error_doubly_cond;
-paramsout.structured_conditioned.lambda = best_lambda;
-paramsout.structured_conditioned.lambda_search_iterations = lambda_search_iterations;
-paramsout.structured_conditioned.time = time_doubly_cond;
+paramsout.(methods{3}).transform = sparse(T_doubly_cond);
+paramsout.(methods{3}).sparse_representation = sparse(X_doubly_cond);
+paramsout.(methods{3}).error = error_doubly_cond;
+paramsout.(methods{3}).lambda = best_lambda;
+paramsout.(methods{3}).sty_pct = sty_pct;
+paramsout.(methods{3}).sty_vec = sty_vec;
+paramsout.(methods{3}).lambda_search_iterations = lambda_search_iterations;
+paramsout.(methods{3}).time = time_doubly_cond;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Save Results %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 

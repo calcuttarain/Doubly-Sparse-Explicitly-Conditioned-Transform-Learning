@@ -1,7 +1,5 @@
-function [T, XT, error, sty_pct, sty_vec] = DoublySparseConditionedTL(T, Y, Y_test, numiter, STY, STY_te, rho, tau, lambda)
-    addpath('TLAlgorithms/DoublyConditionedTLRoutines/');
-
-    rng(0);
+function [T, XT, error, sty_pct, sty_vec] = StructuredConditioned(T, Y, Y_test, numiter, STY, STY_te, rho, tau, lambda)
+    addpath('TLAlgorithms/StructuredConditionedTLRoutines/');
 
     [K, n] = size(T); 
     XT = zeros(K, size(Y, 2)); 
@@ -73,7 +71,7 @@ function [T, XT, error, sty_pct, sty_vec] = DoublySparseConditionedTL(T, Y, Y_te
             lambdas = get_spectrum_doubly(L, rho, tau);
             T_temp = Q * diag(lambdas) * Q';
 
-            lambda_start = 0.1 * max(max(abs(T_temp)));
+            lambda_start = 0.001 * max(max(abs(T_temp)));
 
             decreasing_lambdas = linspace(lambda_start, lambda, numiter);
 

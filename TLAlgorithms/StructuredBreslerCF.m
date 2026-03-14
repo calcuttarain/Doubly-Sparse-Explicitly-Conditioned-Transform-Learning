@@ -1,4 +1,4 @@
-function [B,XB,error]= ClosedFormBreslerDoublySparse(B, Y, Y_test, numiter, l2, l3, T1, STY, STY_te, cbb);
+function [B,XB,error]= StructuredBreslerCF(B, Y, Y_test, numiter, l2, l3, T1, STY, STY_te, cbb);
 
 %This is an implementation of the transform learning algorithm with closed-form solutions for the sparse coding and transform update steps that was presented in the following papers:
 %1) S. Ravishankar and Y. Bresler, "Closed-form solutions within sparsifying transform learning," in Proc. IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP), 2013, pp. 5378-5382.

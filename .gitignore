@@ -1,0 +1,6 @@
+*.asv
+
+plots/
+results/
+
+debug_logs/

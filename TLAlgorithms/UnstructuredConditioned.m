@@ -13,7 +13,7 @@
 % ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 % OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-function [W,XB,error] = ConditionedTransformLearning(W, Y, Y_test, numiter, STY, STY_te, kappa, targetWnorm)
+function [W,XB,error] = UnstructuredConditioned(W, Y, Y_test, numiter, STY, STY_te, kappa, targetWnorm)
     addpath('TLAlgorithms/ConditionedTLRoutines/');
 
 % Implementation adapted on the transform learning framework from the series of

@@ -1,4 +1,4 @@
-function [B,XB,i,error]= BreslerDoublySparseTL(B,Y,Y_test,numiter,l2,l3,T1,mu,numgrad,STY,STY_te,cbb,stopcn,stopth)
+function [B,XB,i,error]= StructuredBresler(B,Y,Y_test,numiter,l2,l3,T1,mu,numgrad,STY,STY_te,cbb,stopcn,stopth)
 
 %This is an implementation of a transform learning algorithm that was presented in the following papers:
 %1) S. Ravishankar and Y. Bresler, �Learning doubly sparse transforms for images,� IEEE Transactions on Image Processing, vol. 22, no. 12, pp. 4598-4612, Dec. 2013.

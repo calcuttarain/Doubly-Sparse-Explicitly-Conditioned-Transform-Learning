@@ -1,8 +1,14 @@
-function plot_convergence(numiter, errors, errors2, labels, kappa, tau, sty_pct, T, title_text)
+function plot_convergence(numiter, errors, errors2, labels, kappa, tau, sty_pct, T, title_text, file_name)
+    folder = 'plots';
+
+    if ~exist(folder, 'dir')
+        mkdir(folder);
+    end
+
     f = figure('Position', [100, 100, 1000, 400]);
     f.Theme = 'light';
 
-    colors = {'k-', 'c-', 'b-', 'r-'}; 
+    colors = {'k-', 'c-', 'r-', 'b-'}; 
     n_methods = length(labels);
 
     % regular error
@@ -29,14 +35,18 @@ function plot_convergence(numiter, errors, errors2, labels, kappa, tau, sty_pct,
     legend(labels, 'Location', 'northeast');
     grid on;
 
+    full_title = [title_text ' Convergence'];
+
     % include r-sparsity for each representation, sparsity percent for doubly sparse conditioned transform and the parameters rho and tau in the title
-    sgtitle({ ['\bf ', title_text], ...
+    sgtitle({ ['\bf ', full_title], ...
         ['$r = ', num2str(T), ...
         ',\ \rho = ', num2str(kappa,'%.2f'), ...
         ',\ \tau = ', num2str(tau,'%.2f'), ...
         ',\ sparsity = ', num2str(sty_pct,'%.2f'), '\%$']}, ...
         'Interpreter','latex');
+
+    path = fullfile('plots', file_name + ".pdf");
     
-    % exportgraphics(gcf, 'plots/convergence.pdf', 'ContentType', 'vector');
+    exportgraphics(gcf, path, 'ContentType', 'vector');
 
 end
