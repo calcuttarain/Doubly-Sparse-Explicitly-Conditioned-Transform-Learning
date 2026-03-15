@@ -21,4 +21,9 @@ function load_data(path)
         % end
     end
 
+    if isfield(data, 'ME')
+        assignin('base', 'ME', data.ME);
+        fprintf('Test Error: %s\n', data.ME.message);
+    end
+
 end

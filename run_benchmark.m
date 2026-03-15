@@ -4,6 +4,9 @@ addpath('utils/');
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Set parameters %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+bresler_methods = {'unstructured_bresler', 'structured_bresler', 'structured_bresler_cf'};
+conditioned_methods = {'unstructured_conditioned', 'structured_conditioned'};
+
 methods = {'structured_bresler_cf', 'unstructured_conditioned', 'structured_conditioned'};
 
 % train / test sets
@@ -97,89 +100,136 @@ STY_tr = T0 * ones(1, size(YH_train, 2)); STY_te = T0 * ones(1, size(YH_test, 2)
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Run Transforms %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+try
 %%%%%%%%%%%%%%%%%%%%%%%%%% Structured Bresler Method %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-l2_bresler = lambda0 * (norm(YH_train, 'fro'))^2;
-l3_bresler = l2_bresler;
-
-%[W_bresler_doubly, X_bresler_doubly, ~, error_bresler_doubly] = StructuredBresler(B0, YH2_train, YH2_test, numiter, l2_bresler, l3_bresler, T1, mu, numg, STY_tr, STY_te, cbb, stopcn, stopth);
-tic;
-[W_bresler_doubly_cf, X_bresler_doubly_cf, error_bresler_doubly_cf] = StructuredBreslerCF(B0, YH2_train, YH2_test, numiter, l2_bresler, l3_bresler, T1, STY_tr, STY_te, cbb);
-time_bresler_doubly_cf = toc;
-
-% set rho and tau based on Bresler Learnt Transform for Explicitly Conditioned Methods
-rho = cond(W_bresler_doubly_cf);
-tau = norm(W_bresler_doubly_cf, 'fro');
-
-% set target sparsity percent for Structured Explicitly Conditioned Method
-total = numel(W_bresler_doubly_cf);           
-curr_sty = nnz(W_bresler_doubly_cf(:) ~= 0);
-target_sty_pct = 100 * curr_sty / total;
-
-% save
-paramsin.l2_bresler = l2_bresler;
-paramsin.l3_bresler = l3_bresler;
-paramsin.rho = rho;
-paramsin.tau = tau;
-
-paramsout.(methods{1}).transform = sparse(W_bresler_doubly_cf);
-paramsout.(methods{1}).sparse_representation = sparse(X_bresler_doubly_cf);
-paramsout.(methods{1}).error = error_bresler_doubly_cf;
-paramsout.(methods{1}).time = time_bresler_doubly_cf;
-
-%%%%%%%%%%%%%%%%%%%%%%% Unstructured Conditioned Method %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-tic;
-[W_cond, X_cond, error_cond] = UnstructuredConditioned(W0, YH_train, YH_test, numiter, STY_tr, STY_te, rho, tau);
-time_cond = toc;
-
-paramsout.(methods{2}).transform = W_cond;
-paramsout.(methods{2}).sparse_representation = sparse(X_cond);
-paramsout.(methods{2}).error = error_cond;
-paramsout.(methods{2}).time = time_cond;
-
-%%%%%%%%%%%%%%%%%%%%%%% Structured Conditioned Method %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-for iter = 1:max_iter
-    lambda_mid = exp((log(lambda_min) + log(lambda_max)) / 2);
-
+    l2_bresler = lambda0 * (norm(YH_train, 'fro'))^2;
+    l3_bresler = l2_bresler;
+    
+    %[W_bresler_doubly, X_bresler_doubly, ~, error_bresler_doubly] = StructuredBresler(B0, YH2_train, YH2_test, numiter, l2_bresler, l3_bresler, T1, mu, numg, STY_tr, STY_te, cbb, stopcn, stopth);
+    lastwarn('');
     tic;
-    [T_doubly_cond, X_doubly_cond, error_doubly_cond, sty_pct, sty_vec] = StructuredConditioned(W0, YH2_train, YH2_test, numiter, STY_tr, STY_te, rho, tau, lambda_mid);
-    time_doubly_cond = toc;
+    [W_bresler_doubly_cf, X_bresler_doubly_cf, error_bresler_doubly_cf] = StructuredBreslerCF(B0, YH2_train, YH2_test, numiter, l2_bresler, l3_bresler, T1, STY_tr, STY_te, cbb);
+    time_bresler_doubly_cf = toc;
+    
+    % set rho and tau based on Bresler Learnt Transform for Explicitly Conditioned Methods
+    rho = cond(W_bresler_doubly_cf);
+    tau = norm(W_bresler_doubly_cf, 'fro');
+    
+    % set target sparsity percent for Structured Explicitly Conditioned Method
+    total = numel(W_bresler_doubly_cf);           
+    curr_sty = nnz(W_bresler_doubly_cf(:) ~= 0);
+    target_sty_pct = 100 * curr_sty / total;
+    
+    % save
+    paramsin.l2_bresler = l2_bresler;
+    paramsin.l3_bresler = l3_bresler;
+    paramsin.rho = rho;
+    paramsin.tau = tau;
+    
+    paramsout.(methods{1}).transform = sparse(W_bresler_doubly_cf);
+    paramsout.(methods{1}).sparse_representation = sparse(X_bresler_doubly_cf);
+    paramsout.(methods{1}).error = error_bresler_doubly_cf;
+    paramsout.(methods{1}).time = time_bresler_doubly_cf;
 
-    if abs(sty_pct - target_sty_pct) <= tol_sty_pct
-        best_lambda = lambda_mid;
-        lambda_search_iterations = iter;
-        break;
+    [msg, id] = lastwarn;
+    if ~isempty(msg)
+        paramsout.(methods{1}).warning.msg = msg;
+        paramsout.(methods{1}).warning.id = id;
+    end
+    
+    %%%%%%%%%%%%%%%%%%%%%%% Unstructured Conditioned Method %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    
+    lastwarn('');
+    tic;
+    [W_cond, X_cond, error_cond] = UnstructuredConditioned(W0, YH_train, YH_test, numiter, STY_tr, STY_te, rho, tau);
+    time_cond = toc;
+    
+    paramsout.(methods{2}).transform = W_cond;
+    paramsout.(methods{2}).sparse_representation = sparse(X_cond);
+    paramsout.(methods{2}).error = error_cond;
+    paramsout.(methods{2}).time = time_cond;
+
+    [msg, id] = lastwarn;
+    if ~isempty(msg)
+        paramsout.(methods{2}).warning.msg = msg;
+        paramsout.(methods{2}).warning.id = id;
+    end
+    
+    %%%%%%%%%%%%%%%%%%%%%%% Structured Conditioned Method %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+    lastwarn('');
+    for iter = 1:max_iter
+        lambda_mid = exp((log(lambda_min) + log(lambda_max)) / 2);
+        
+        tic;
+        [T_doubly_cond, X_doubly_cond, error_doubly_cond, sty_pct, sty_vec] = StructuredConditioned(W0, YH2_train, YH2_test, numiter, STY_tr, STY_te, rho, tau, lambda_mid);
+        time_doubly_cond = toc;
+        
+        if abs(sty_pct - target_sty_pct) <= tol_sty_pct
+            best_lambda = lambda_mid;
+            lambda_search_iterations = iter;
+            break;
+        end
+        
+        if sty_pct > target_sty_pct
+            lambda_min = lambda_mid;
+        else
+            lambda_max = lambda_mid;
+        end
+    
+    end
+    
+    paramsout.(methods{3}).transform = sparse(T_doubly_cond);
+    paramsout.(methods{3}).sparse_representation = sparse(X_doubly_cond);
+    paramsout.(methods{3}).error = error_doubly_cond;
+    paramsout.(methods{3}).lambda = best_lambda;
+    paramsout.(methods{3}).sty_pct = sty_pct;
+    paramsout.(methods{3}).sty_vec = sty_vec;
+    paramsout.(methods{3}).lambda_search_iterations = lambda_search_iterations;
+    paramsout.(methods{3}).time = time_doubly_cond;
+
+    [msg, id] = lastwarn;
+    if ~isempty(msg)
+        paramsout.(methods{3}).warning.msg = msg;
+        paramsout.(methods{3}).warning.id = id;
     end
 
-    if sty_pct > target_sty_pct
-        lambda_min = lambda_mid;
-    else
-        lambda_max = lambda_mid;
+    paramsout.status = 'Success';
+
+    %%% save to disk
+
+    folder = 'results';
+    
+    if ~exist(folder, 'dir')
+        mkdir(folder);
+    end
+    
+    timestamp = datestr(now, 'yyyy-mm-dd_HHMMSS');
+    file = sprintf('%s.mat', timestamp);
+    
+    path = fullfile(folder, file);
+    
+    save(path, 'paramsin', 'paramsout');
+
+    %%% clear output
+    clear paramsout;
+
+catch ME
+    % beep;
+
+    paramsout.status = 'Failed';
+
+    folder = 'debug_logs';
+    
+    if ~exist(folder, 'dir')
+        mkdir(folder);
     end
 
+    timestamp = datestr(now, 'yyyy-mm-dd_HHMMSS');
+
+    path = fullfile('debug_logs', ['CRASH_', '_', timestamp, '.mat']);
+
+    save(path, 'ME', 'paramsin', 'paramsout');
+
 end
-
-paramsout.(methods{3}).transform = sparse(T_doubly_cond);
-paramsout.(methods{3}).sparse_representation = sparse(X_doubly_cond);
-paramsout.(methods{3}).error = error_doubly_cond;
-paramsout.(methods{3}).lambda = best_lambda;
-paramsout.(methods{3}).sty_pct = sty_pct;
-paramsout.(methods{3}).sty_vec = sty_vec;
-paramsout.(methods{3}).lambda_search_iterations = lambda_search_iterations;
-paramsout.(methods{3}).time = time_doubly_cond;
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Save Results %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-folder = 'results';
-
-if ~exist(folder, 'dir')
-    mkdir(folder);
-end
-
-timestamp = datestr(now, 'yyyy-mm-dd_HHMMSS');
-file = sprintf('%s.mat', timestamp);
-
-path = fullfile(folder, file);
-
-save(path, 'paramsin', 'paramsout');
