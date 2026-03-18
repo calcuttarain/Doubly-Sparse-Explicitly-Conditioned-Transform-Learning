@@ -1,3 +1,4 @@
+warning('off','MATLAB:rankDeficientMatrix');
 clear; clc; close all;
 addpath('TLAlgorithms/');
 addpath('utils/');
@@ -23,11 +24,11 @@ test_sets  = { {'Hill', 'Man', 'Baboon', 'MRI'}, ...
 
 bresler_methods = {'UnstructuredBresler', 'StructuredBresler', 'StructuredBreslerCF'};
 % bresler_lambdas = linspace(2.1e-1, 2.1e-13, 2);
-bresler_lambdas = [2.1e-6, 2.1e-9];
+bresler_lambdas = [2.1e-9];
 numiter = 1000;
 
 % lambda search loop parameters for Doubly Sparse Conditioned Transform
-max_iter = 30;                                     % maximum number of iterations
+max_iter = 3;                                     % maximum number of iterations
 tol_sty_pct = 1;                                   % sparsity percent tolerance
 global_lambda_min = 1e-10;                         % left endpoint of search interval
 global_lambda_max = 1e3;                           % right endpoint of search interval
@@ -75,20 +76,30 @@ for iter_bresler_lambda = 1:length(bresler_lambdas)
 
         paramsin.numiter = numiter;
 
-        %%% methods for
-        for iter_bresler_method = 1:length(bresler_methods)
+        %%% methods parfor
+        parfor iter_bresler_method = 1:length(bresler_methods)
             bresler_method = bresler_methods{iter_bresler_method};
+
+            local_paramsin = paramsin;
+            rho_max = 1e12;
+            paramsout = struct(); 
+            result = struct();
 
             try
                 %%%%%%%%%%% Run Bresler Method %%%%%%%%%%%
     
                 lastwarn('');
                 tic;
-                [paramsout.(bresler_method).transform, paramsout.(bresler_method).representation, paramsout.(bresler_method).error] = feval(bresler_method, paramsin);
+                [paramsout.(bresler_method).transform, paramsout.(bresler_method).representation, paramsout.(bresler_method).error] = feval(bresler_method, local_paramsin);
                 paramsout.(bresler_method).time = toc;
     
-                paramsin.rho = cond(paramsout.(bresler_method).transform);
-                paramsin.tau = norm(paramsout.(bresler_method).transform, 'fro');
+                local_paramsin.rho = cond(paramsout.(bresler_method).transform);
+                local_paramsin.tau = norm(paramsout.(bresler_method).transform, 'fro');
+
+                if local_paramsin.rho > rho_max || isnan(local_paramsin.rho)
+                    error('TRANSFORM:PoorConditioningBreslerMethod', ...
+                          'Condition number too high (%.2e).', local_paramsin.rho);
+                end
 
                 if ~strcmp(bresler_method, 'UnstructuredBresler')
                     paramsout.(bresler_method).transform = sparse(paramsout.(bresler_method).transform);
@@ -101,14 +112,12 @@ for iter_bresler_lambda = 1:length(bresler_lambdas)
                     paramsout.(bresler_method).warning.id = id;
                 end
     
-                bresler_method
-    
                 %%%%%%%%%%% Unstructured Conditioned Method %%%%%%%%%%%
     
                 method = 'UnstructuredConditioned';
                 lastwarn('');
                 tic;
-                [paramsout.(method).transform, paramsout.(method).representation, paramsout.(method).error] = UnstructuredConditioned(paramsin);
+                [paramsout.(method).transform, paramsout.(method).representation, paramsout.(method).error] = UnstructuredConditioned(local_paramsin);
                 paramsout.(method).time = toc;
     
                 paramsout.(method).representation = sparse(paramsout.(method).representation);
@@ -118,9 +127,7 @@ for iter_bresler_lambda = 1:length(bresler_lambdas)
                     paramsout.(method).warning.msg = msg;
                     paramsout.(method).warning.id = id;
                 end
-    
-                method
-                
+
     
                 %%%%%%%%%%% Structured Conditioned Method %%%%%%%%%%%
     
@@ -129,30 +136,36 @@ for iter_bresler_lambda = 1:length(bresler_lambdas)
                 sty_pct_lambda_search = NaN(1, max_iter);
                 lambda_min = global_lambda_min;
                 lambda_max = global_lambda_max;
-                paramsin.relaxation = 0.01;
+                local_paramsin.relaxation = 0.01;
+
+                lambda_mid = NaN;
+                T_proposed = [];
+                X_proposed = [];
+                error_proposed = [];
+                sty_pct = NaN;
+                sty_vec = [];
+                time_doubly_cond = 0;
     
                 for iter = 1:max_iter
                     lambda_mid = exp((log(lambda_min) + log(lambda_max)) / 2);
     
-                    paramsin.lambda = lambda_mid;
+                    local_paramsin.lambda = lambda_mid;
                     
                     tic;
-                    [T, X, error, sty_pct, sty_vec] = StructuredConditioned(paramsin);
+                    [T_proposed, X_proposed, error_proposed, sty_pct, sty_vec] = StructuredConditioned(local_paramsin);
                     time_doubly_cond = toc;
 
                     if (iter > 1) && (abs(sty_pct - sty_pct_lambda_search(iter - 1)) <= 0.00001)
-                        paramsin.relaxation = paramsin.relaxation / 10
+                        local_paramsin.relaxation = local_paramsin.relaxation / 10
                     end
             
                     sty_pct_lambda_search(iter) = sty_pct;
     
-                    sty_pct
-                    
-                    if abs(sty_pct - paramsin.T1) <= tol_sty_pct
+                    if abs(sty_pct - local_paramsin.T1) <= tol_sty_pct
                         break;
                     end
                     
-                    if sty_pct > paramsin.T1
+                    if sty_pct > local_paramsin.T1
                         lambda_min = lambda_mid;
                     else
                         lambda_max = lambda_mid;
@@ -162,9 +175,9 @@ for iter_bresler_lambda = 1:length(bresler_lambdas)
     
                 method = 'StructuredConditioned';
                 
-                paramsout.(method).transform = sparse(T);
-                paramsout.(method).sparse_representation = sparse(X);
-                paramsout.(method).error = error;
+                paramsout.(method).transform = sparse(T_proposed);
+                paramsout.(method).sparse_representation = sparse(X_proposed);
+                paramsout.(method).error = error_proposed;
                 paramsout.(method).lambda = lambda_mid;
                 paramsout.(method).sty_pct = sty_pct;
                 paramsout.(method).sty_vec = sty_vec;
@@ -177,17 +190,16 @@ for iter_bresler_lambda = 1:length(bresler_lambdas)
                     paramsout.(method).warning.msg = msg;
                     paramsout.(method).warning.id = id;
                 end
-                method
-                
+
                 %%% save result
     
                 result.paramsin.bresler_lambda = bresler_lambda;
                 result.paramsin.bresler_method = bresler_method;
                 result.paramsin.parameters_settings_idx = iter_param_setting;
-                result.paramsin.rho = paramsin.rho;
-                result.paramsin.tau = paramsin.tau;
-                result.paramsin.l2_bresler = paramsin.l2_bresler;
-                result.paramsin.l3_bresler = paramsin.l3_bresler;
+                result.paramsin.rho = local_paramsin.rho;
+                result.paramsin.tau = local_paramsin.tau;
+                result.paramsin.l2_bresler = local_paramsin.l2_bresler;
+                result.paramsin.l3_bresler = local_paramsin.l3_bresler;
                 result.paramsout = paramsout;
                 result.status = 'Success';
 
@@ -196,12 +208,14 @@ for iter_bresler_lambda = 1:length(bresler_lambdas)
 
                 result.paramsin.bresler_lambda = bresler_lambda;
                 result.paramsin.parameters_settings_idx = iter_param_setting;
-                result.status = 'Failed';
+                if strcmp(ME.identifier, 'TRANSFORM:PoorConditioningBreslerMethod')
+                    result.status = 'Skipped_BadCondition';
+                else
+                    result.status = 'Failed';
+                end
             end
 
             results{iter_bresler_method} = result;
-
-            clear paramsout;
         end
 
         %%% save to disk
