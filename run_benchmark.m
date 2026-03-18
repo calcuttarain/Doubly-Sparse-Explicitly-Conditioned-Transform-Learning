@@ -2,234 +2,215 @@ clear; clc; close all;
 addpath('TLAlgorithms/');
 addpath('utils/');
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Set parameters %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%% Parameters %%%%%%%%%%%%%%%%%%%%%%%%
 
-bresler_methods = {'unstructured_bresler', 'structured_bresler', 'structured_bresler_cf'};
-conditioned_methods = {'unstructured_conditioned', 'structured_conditioned'};
+% T0_list = [6, 8, 10, 15];
+% T1_list = [0.15, 0.20, 0.25, 0.30];
+% 
+% patch_size_list = [64, 121, 196, 256];
+T0_list = [6];
+T1_list = [20];
 
-methods = {'structured_bresler_cf', 'unstructured_conditioned', 'structured_conditioned'};
+patch_size_list = [64, 256];
 
-% train / test sets
-train_set = {'Barbara', 'Couple', 'Lena'};
-test_set  = {'Hill', 'Man'};
+input_folders_datasets = {'data', 'DIV2K_valid_HR_data'};
+train_sets = { {'Barbara', 'Couple', 'Lena', 'Cameraman'}, ...
+               {'0801', '0802', '0803', '0804', '0805', '0806', '0807'} };
+test_sets  = { {'Hill', 'Man', 'Baboon', 'MRI'}, ...
+               {'0808', '0809', '0810'} };
 
-n = 64;                                            % patch size 
+[parameters_settings, datasets_by_n] = generate_settings(T0_list, T1_list, patch_size_list, input_folders_datasets, train_sets, test_sets);
 
-T0 = 6;                                            % sparsity level for each representation
+bresler_methods = {'UnstructuredBresler', 'StructuredBresler', 'StructuredBreslerCF'};
+% bresler_lambdas = linspace(2.1e-1, 2.1e-13, 2);
+bresler_lambdas = [2.1e-6, 2.1e-9];
+numiter = 1000;
 
-numiter = 300;                                     % number of iterations for AM algorithm
-
-W0 = kron(dctmtx(sqrt(n)), dctmtx(sqrt(n)));       % 2D DCT initialization, canonical transform factor
-
-lambda0 = 2.1e-7;                                  % Bresler Method parameter
-
-% Bresler Doubly Sparse Transform parameters
-T1 = round((0.25)*(n^2));                          % Bresler Doubly Sparse Transform sparsity
-B0 = eye(n);                                       % Bresler Doubly Sparse Transform initialization
-mu = 2e-9;
-numg = 30;
-cbb = 0; stopcn = 0; stopth = 0;
-
-% lambda search loop parameters
+% lambda search loop parameters for Doubly Sparse Conditioned Transform
 max_iter = 30;                                     % maximum number of iterations
 tol_sty_pct = 1;                                   % sparsity percent tolerance
-lambda_min = 1e-10;                                % left endpoint of search interval
-lambda_max = 1e3;                                  % right endpoint of search interval
+global_lambda_min = 1e-10;                         % left endpoint of search interval
+global_lambda_max = 1e3;                           % right endpoint of search interval
 
-% save
-paramsin.n = n;
-paramsin.T0 = T0;
-paramsin.numiter = numiter;
-paramsin.W0 = W0;
-paramsin.lambda0 = lambda0;
-paramsin.T1 = T1;
-paramsin.B0 = B0; 
-paramsin.mu = mu; 
-paramsin.numg = numg; 
-paramsin.cbb = cbb; 
-paramsin.stopcn = stopcn; 
-paramsin.stopth = stopth;
-paramsin.max_iter = max_iter;
-paramsin.lambda_min = lambda_min;
-paramsin.lambda_max = lambda_max;
-paramsin.tol_sty_pct = tol_sty_pct;
-paramsin.train_set = train_set;
-paramsin.test_set = test_set;
-paramsin.rng_state = rng;
-paramsin.methods = methods;
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Data Loading and Preparation %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-blocks_tr = [];
-blocks_te = [];
-
-for i = 1:length(train_set)
-    img = train_set{i};
-
-    filepath = fullfile('data', [img, '.mat']);
-
-    data = struct2cell(load(filepath));
-    img = data{1};
-
-    blocks_tr = [blocks_tr, my_im2col(img, [sqrt(n), sqrt(n)], sqrt(n))];
+timestamp = datestr(now, 'yyyy-mm-dd_HHMM');
+folder = sprintf('results_%s', timestamp);
+        
+if ~exist(folder, 'dir')
+    mkdir(folder);
 end
 
-for i = 1:length(test_set)
-    img = test_set{i};
-
-    filepath = fullfile('data', [img, '.mat']);
-
-    data = struct2cell(load(filepath));
-    img = data{1};
-
-    % concatenate
-    blocks_te = [blocks_te, my_im2col(img, [sqrt(n), sqrt(n)], sqrt(n))];
-end
-
-% subtract the means
-br_tr = mean(blocks_tr); br_te = mean(blocks_te);
-TE_tr = blocks_tr - (ones(n, 1) * br_tr); TE_te = blocks_te - (ones(n, 1) * br_te);
-YH_train = TE_tr; YH_test = TE_te;
-
-% data in analytical transform domain
-YH2_train = W0 * YH_train; YH2_test = W0 * YH_test;
-
-% set the sparsity levels
-STY_tr = T0 * ones(1, size(YH_train, 2)); STY_te = T0 * ones(1, size(YH_test, 2)); 
+file_name = 'global_settings.mat';
+path = fullfile(folder, file_name);
+save(path);
 
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Run Transforms %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%% Big For Loop %%%%%%%%%%%%%%%%%%%%%%%%
+for iter_bresler_lambda = 1:length(bresler_lambdas)
+    bresler_lambda = bresler_lambdas(iter_bresler_lambda);
 
-try
-%%%%%%%%%%%%%%%%%%%%%%%%%% Structured Bresler Method %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    for iter_param_setting = 1:length(parameters_settings)
+        results = cell(1, length(bresler_methods));
 
-    l2_bresler = lambda0 * (norm(YH_train, 'fro'))^2;
-    l3_bresler = l2_bresler;
+        %%% extract parameters
+
+        paramsin.T0 = parameters_settings(iter_param_setting).T0;
+        paramsin.T1 = parameters_settings(iter_param_setting).T1;
+        n = parameters_settings(iter_param_setting).patch_size;
+        dataset_idx = parameters_settings(iter_param_setting).dataset_idx;
+
+        paramsin.YH_train = datasets_by_n([datasets_by_n.n] == n).YH_train{dataset_idx};
+        paramsin.YH_test = datasets_by_n([datasets_by_n.n] == n).YH_test{dataset_idx};
+
+        %%% compute the rest of the parameters
+
+        % initializations
+        paramsin.W0 = kron(dctmtx(sqrt(n)), dctmtx(sqrt(n)));
+        paramsin.B0 = eye(n);
+
+        % set the sparsity levels
+        paramsin.STY_tr = paramsin.T0 * ones(1, size(paramsin.YH_train, 2)); paramsin.STY_te = paramsin.T0 * ones(1, size(paramsin.YH_test, 2));
+
+        paramsin.l2_bresler = bresler_lambda * (norm(paramsin.YH_train, 'fro'))^2;
+        paramsin.l3_bresler = paramsin.l2_bresler;
+
+        paramsin.numiter = numiter;
+
+        %%% methods for
+        for iter_bresler_method = 1:length(bresler_methods)
+            bresler_method = bresler_methods{iter_bresler_method};
+
+            try
+                %%%%%%%%%%% Run Bresler Method %%%%%%%%%%%
     
-    %[W_bresler_doubly, X_bresler_doubly, ~, error_bresler_doubly] = StructuredBresler(B0, YH2_train, YH2_test, numiter, l2_bresler, l3_bresler, T1, mu, numg, STY_tr, STY_te, cbb, stopcn, stopth);
-    lastwarn('');
-    tic;
-    [W_bresler_doubly_cf, X_bresler_doubly_cf, error_bresler_doubly_cf] = StructuredBreslerCF(B0, YH2_train, YH2_test, numiter, l2_bresler, l3_bresler, T1, STY_tr, STY_te, cbb);
-    time_bresler_doubly_cf = toc;
+                lastwarn('');
+                tic;
+                [paramsout.(bresler_method).transform, paramsout.(bresler_method).representation, paramsout.(bresler_method).error] = feval(bresler_method, paramsin);
+                paramsout.(bresler_method).time = toc;
     
-    % set rho and tau based on Bresler Learnt Transform for Explicitly Conditioned Methods
-    rho = cond(W_bresler_doubly_cf);
-    tau = norm(W_bresler_doubly_cf, 'fro');
-    
-    % set target sparsity percent for Structured Explicitly Conditioned Method
-    total = numel(W_bresler_doubly_cf);           
-    curr_sty = nnz(W_bresler_doubly_cf(:) ~= 0);
-    target_sty_pct = 100 * curr_sty / total;
-    
-    % save
-    paramsin.l2_bresler = l2_bresler;
-    paramsin.l3_bresler = l3_bresler;
-    paramsin.rho = rho;
-    paramsin.tau = tau;
-    
-    paramsout.(methods{1}).transform = sparse(W_bresler_doubly_cf);
-    paramsout.(methods{1}).sparse_representation = sparse(X_bresler_doubly_cf);
-    paramsout.(methods{1}).error = error_bresler_doubly_cf;
-    paramsout.(methods{1}).time = time_bresler_doubly_cf;
+                paramsin.rho = cond(paramsout.(bresler_method).transform);
+                paramsin.tau = norm(paramsout.(bresler_method).transform, 'fro');
 
-    [msg, id] = lastwarn;
-    if ~isempty(msg)
-        paramsout.(methods{1}).warning.msg = msg;
-        paramsout.(methods{1}).warning.id = id;
-    end
+                if ~strcmp(bresler_method, 'UnstructuredBresler')
+                    paramsout.(bresler_method).transform = sparse(paramsout.(bresler_method).transform);
+                end
+                paramsout.(bresler_method).representation = sparse(paramsout.(bresler_method).representation);
     
-    %%%%%%%%%%%%%%%%%%%%%%% Unstructured Conditioned Method %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                [msg, id] = lastwarn;
+                if ~isempty(msg)
+                    paramsout.(bresler_method).warning.msg = msg;
+                    paramsout.(bresler_method).warning.id = id;
+                end
     
-    lastwarn('');
-    tic;
-    [W_cond, X_cond, error_cond] = UnstructuredConditioned(W0, YH_train, YH_test, numiter, STY_tr, STY_te, rho, tau);
-    time_cond = toc;
+                bresler_method
     
-    paramsout.(methods{2}).transform = W_cond;
-    paramsout.(methods{2}).sparse_representation = sparse(X_cond);
-    paramsout.(methods{2}).error = error_cond;
-    paramsout.(methods{2}).time = time_cond;
+                %%%%%%%%%%% Unstructured Conditioned Method %%%%%%%%%%%
+    
+                method = 'UnstructuredConditioned';
+                lastwarn('');
+                tic;
+                [paramsout.(method).transform, paramsout.(method).representation, paramsout.(method).error] = UnstructuredConditioned(paramsin);
+                paramsout.(method).time = toc;
+    
+                paramsout.(method).representation = sparse(paramsout.(method).representation);
+    
+                [msg, id] = lastwarn;
+                if ~isempty(msg)
+                    paramsout.(method).warning.msg = msg;
+                    paramsout.(method).warning.id = id;
+                end
+    
+                method
+                
+    
+                %%%%%%%%%%% Structured Conditioned Method %%%%%%%%%%%
+    
+                lastwarn('');
+    
+                sty_pct_lambda_search = NaN(1, max_iter);
+                lambda_min = global_lambda_min;
+                lambda_max = global_lambda_max;
+                paramsin.relaxation = 0.01;
+    
+                for iter = 1:max_iter
+                    lambda_mid = exp((log(lambda_min) + log(lambda_max)) / 2);
+    
+                    paramsin.lambda = lambda_mid;
+                    
+                    tic;
+                    [T, X, error, sty_pct, sty_vec] = StructuredConditioned(paramsin);
+                    time_doubly_cond = toc;
 
-    [msg, id] = lastwarn;
-    if ~isempty(msg)
-        paramsout.(methods{2}).warning.msg = msg;
-        paramsout.(methods{2}).warning.id = id;
-    end
+                    if (iter > 1) && (abs(sty_pct - sty_pct_lambda_search(iter - 1)) <= 0.00001)
+                        paramsin.relaxation = paramsin.relaxation / 10
+                    end
+            
+                    sty_pct_lambda_search(iter) = sty_pct;
     
-    %%%%%%%%%%%%%%%%%%%%%%% Structured Conditioned Method %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                    sty_pct
+                    
+                    if abs(sty_pct - paramsin.T1) <= tol_sty_pct
+                        break;
+                    end
+                    
+                    if sty_pct > paramsin.T1
+                        lambda_min = lambda_mid;
+                    else
+                        lambda_max = lambda_mid;
+                    end
+                
+                end
+    
+                method = 'StructuredConditioned';
+                
+                paramsout.(method).transform = sparse(T);
+                paramsout.(method).sparse_representation = sparse(X);
+                paramsout.(method).error = error;
+                paramsout.(method).lambda = lambda_mid;
+                paramsout.(method).sty_pct = sty_pct;
+                paramsout.(method).sty_vec = sty_vec;
+                paramsout.(method).lambda_search_iterations = iter;
+                paramsout.(method).sty_pct_lambda_search = sty_pct_lambda_search(1:iter);
+                paramsout.(method).time = time_doubly_cond;
+            
+                [msg, id] = lastwarn;
+                if ~isempty(msg)
+                    paramsout.(method).warning.msg = msg;
+                    paramsout.(method).warning.id = id;
+                end
+                method
+                
+                %%% save result
+    
+                result.paramsin.bresler_lambda = bresler_lambda;
+                result.paramsin.bresler_method = bresler_method;
+                result.paramsin.parameters_settings_idx = iter_param_setting;
+                result.paramsin.rho = paramsin.rho;
+                result.paramsin.tau = paramsin.tau;
+                result.paramsin.l2_bresler = paramsin.l2_bresler;
+                result.paramsin.l3_bresler = paramsin.l3_bresler;
+                result.paramsout = paramsout;
+                result.status = 'Success';
 
-    lastwarn('');
-    for iter = 1:max_iter
-        lambda_mid = exp((log(lambda_min) + log(lambda_max)) / 2);
-        
-        tic;
-        [T_doubly_cond, X_doubly_cond, error_doubly_cond, sty_pct, sty_vec] = StructuredConditioned(W0, YH2_train, YH2_test, numiter, STY_tr, STY_te, rho, tau, lambda_mid);
-        time_doubly_cond = toc;
-        
-        if abs(sty_pct - target_sty_pct) <= tol_sty_pct
-            best_lambda = lambda_mid;
-            lambda_search_iterations = iter;
-            break;
+            catch ME
+                result.ME = ME;
+
+                result.paramsin.bresler_lambda = bresler_lambda;
+                result.paramsin.parameters_settings_idx = iter_param_setting;
+                result.status = 'Failed';
+            end
+
+            results{iter_bresler_method} = result;
+
+            clear paramsout;
         end
+
+        %%% save to disk
+        file = sprintf('results_L%d_P%d.mat', iter_bresler_lambda, iter_param_setting);
         
-        if sty_pct > target_sty_pct
-            lambda_min = lambda_mid;
-        else
-            lambda_max = lambda_mid;
-        end
+        path = fullfile(folder, file);
+        
+        save(path, 'results');
     
+        clear results;
     end
-    
-    paramsout.(methods{3}).transform = sparse(T_doubly_cond);
-    paramsout.(methods{3}).sparse_representation = sparse(X_doubly_cond);
-    paramsout.(methods{3}).error = error_doubly_cond;
-    paramsout.(methods{3}).lambda = best_lambda;
-    paramsout.(methods{3}).sty_pct = sty_pct;
-    paramsout.(methods{3}).sty_vec = sty_vec;
-    paramsout.(methods{3}).lambda_search_iterations = lambda_search_iterations;
-    paramsout.(methods{3}).time = time_doubly_cond;
-
-    [msg, id] = lastwarn;
-    if ~isempty(msg)
-        paramsout.(methods{3}).warning.msg = msg;
-        paramsout.(methods{3}).warning.id = id;
-    end
-
-    paramsout.status = 'Success';
-
-    %%% save to disk
-
-    folder = 'results';
-    
-    if ~exist(folder, 'dir')
-        mkdir(folder);
-    end
-    
-    timestamp = datestr(now, 'yyyy-mm-dd_HHMMSS');
-    file = sprintf('%s.mat', timestamp);
-    
-    path = fullfile(folder, file);
-    
-    save(path, 'paramsin', 'paramsout');
-
-    %%% clear output
-    clear paramsout;
-
-catch ME
-    % beep;
-
-    paramsout.status = 'Failed';
-
-    folder = 'debug_logs';
-    
-    if ~exist(folder, 'dir')
-        mkdir(folder);
-    end
-
-    timestamp = datestr(now, 'yyyy-mm-dd_HHMMSS');
-
-    path = fullfile('debug_logs', ['CRASH_', '_', timestamp, '.mat']);
-
-    save(path, 'ME', 'paramsin', 'paramsout');
-
 end

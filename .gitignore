@@ -1,9 +1,9 @@
 *.asv
 
-plots/
-results/
+plots*/
+results*/
 
-debug_logs/
+debug_logs*/
 
 DIV2K_valid_HR/
 DIV2K_valid_HR_data/

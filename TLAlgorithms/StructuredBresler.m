@@ -1,4 +1,20 @@
-function [B,XB,i,error]= StructuredBresler(B,Y,Y_test,numiter,l2,l3,T1,mu,numgrad,STY,STY_te,cbb,stopcn,stopth)
+function [B,XB,error]= StructuredBresler(paramsin)
+B = paramsin.B0;
+Y = paramsin.W0 * paramsin.YH_train;
+Y_test = paramsin.W0 * paramsin.YH_test;
+numiter = paramsin.numiter;
+l2 = paramsin.l2_bresler;
+l3 = paramsin.l3_bresler;
+[size_1, ~] = size(paramsin.YH_train);
+T1 = round((paramsin.T1 / 100) * (size_1^2));
+STY = paramsin.STY_tr;
+STY_te = paramsin.STY_te;
+
+mu = 2e-9;
+numgrad = 30;
+cbb = 0;
+stopcn = 0;
+stopth = 0;
 
 %This is an implementation of a transform learning algorithm that was presented in the following papers:
 %1) S. Ravishankar and Y. Bresler, �Learning doubly sparse transforms for images,� IEEE Transactions on Image Processing, vol. 22, no. 12, pp. 4598-4612, Dec. 2013.

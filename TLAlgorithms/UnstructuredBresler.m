@@ -1,4 +1,12 @@
-function [W,XB,error]= UnstructuredBresler(W,Y,Y_test,numiter,l2,l3,STY, STY_te)
+function [W,XB,error]= UnstructuredBresler(paramsin)
+W = paramsin.W0;
+Y = paramsin.YH_train;
+Y_test = paramsin.YH_test;
+numiter = paramsin.numiter;
+l2 = paramsin.l2_bresler;
+l3 = paramsin.l3_bresler;
+STY = paramsin.STY_tr;
+STY_te = paramsin.STY_te;
 
 %This is an implementation of the transform learning algorithm with closed-form solutions for the sparse coding and transform update steps that was presented in the following papers:
 %1) S. Ravishankar and Y. Bresler, "Closed-form solutions within sparsifying transform learning," in Proc. IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP), 2013, pp. 5378-5382.
