@@ -1,4 +1,3 @@
-warning('off','MATLAB:rankDeficientMatrix');
 clear; clc; close all;
 addpath('TLAlgorithms/');
 addpath('utils/');
@@ -35,7 +34,7 @@ test_sets  = { {'Hill', 'Man', 'Baboon', 'MRI'}, ...
 SharedDatasets = parallel.pool.Constant(datasets_by_n);
 
 % lambda search loop parameters for Doubly Sparse Conditioned Transform
-max_iter = 3;                                      % maximum number of iterations
+max_iter = 30;                                     % maximum number of iterations
 tol_sty_pct = 1;                                   % sparsity percent tolerance
 global_lambda_min = 1e-10;                         % left endpoint of search interval
 global_lambda_max = 1e3;                           % right endpoint of search interval
@@ -57,13 +56,6 @@ for iter_bresler_lambda = 1:length(bresler_lambdas)
 
     % paralelize on parameters grid
     parfor iter_param_setting = 1:length(parameters_settings)
-        % t = getCurrentTask();
-        % if isempty(t)
-        %     worker_id = 0; 
-        % else
-        %     worker_id = t.ID; 
-        % end
-        % fprintf('Worker %d started iteration %d\n', worker_id, iter_param_setting);
         paramsin = struct(); 
         results = cell(1, length(bresler_methods));
 

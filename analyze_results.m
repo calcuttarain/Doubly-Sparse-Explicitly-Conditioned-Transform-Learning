@@ -2,12 +2,12 @@ clear; clc; close all;
 addpath('utils/');
 
 %%% test parameters
-timestamp = '2026-03-19_2048'; % for example
+timestamp = '2026-03-19_2048';     % for example
+lambda_idx = 1;                    % for example
+parameters_settings_idx = 1;       % for example
+
 input_folder = "results_" + timestamp; 
 output_folder = "plots_" + timestamp;
-
-lambda_idx = 1;
-parameters_settings_idx = 8;
 
 %%% load
 load(fullfile(input_folder,"global_settings.mat"));
