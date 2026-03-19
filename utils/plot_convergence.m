@@ -1,11 +1,11 @@
-function plot_convergence(numiter, errors, errors2, labels, kappa, tau, sty_pct, T, title_text, file_name)
-    folder = 'plots';
-
-    if ~exist(folder, 'dir')
-        mkdir(folder);
+function plot_convergence(numiter, errors, errors2, labels, kappa, tau, sty_pct, T, title_text, folder, file_name, show_plots)
+    if show_plots
+        visible = 'on';
+    else 
+        visible = 'off';
     end
 
-    f = figure('Position', [100, 100, 1000, 400]);
+    f = figure('Position', [100, 100, 1000, 400], 'Visible', visible);
     f.Theme = 'light';
 
     colors = {'k-', 'c-', 'r-', 'b-'}; 
@@ -45,8 +45,7 @@ function plot_convergence(numiter, errors, errors2, labels, kappa, tau, sty_pct,
         ',\ sparsity = ', num2str(sty_pct,'%.2f'), '\%$']}, ...
         'Interpreter','latex');
 
-    path = fullfile('plots', file_name + ".pdf");
+    path = fullfile(folder, file_name + ".pdf");
     
     exportgraphics(gcf, path, 'ContentType', 'vector');
-
 end

@@ -1,11 +1,11 @@
-function plot_sparsity(T_doubly_cond, numiter, errors, sty_vec, kappa, tau, lambda, T, file_name)
-    folder = 'plots';
-
-    if ~exist(folder, 'dir')
-        mkdir(folder);
+function plot_sparsity(T_doubly_cond, numiter, errors, sty_vec, kappa, tau, lambda, T, folder, file_name, show_plots)
+    if show_plots
+        visible = 'on';
+    else 
+        visible = 'off';
     end
 
-    f = figure('Position', [100, 100, 1000, 400]);
+    f = figure('Position', [100, 100, 1000, 400], 'Visible', visible);
     f.Theme = 'light';
 
     subplot(1, 2, 1);
@@ -30,12 +30,12 @@ function plot_sparsity(T_doubly_cond, numiter, errors, sty_vec, kappa, tau, lamb
         ',\ \lambda = ', num2str(lambda, '%.2e'), '$']}, ...
         'Interpreter', 'latex');
 
-    path = fullfile('plots', file_name + "_sparsity_pct" + ".pdf");
+    path = fullfile(folder, file_name + "_sparsity_pct" + ".pdf");
     
     exportgraphics(gcf, path, 'ContentType', 'vector');
 
 
-    f = figure;
+    f = figure('Visible', visible);
     f.Theme = 'light';
     
     spy(sparse(T_doubly_cond));
@@ -43,7 +43,7 @@ function plot_sparsity(T_doubly_cond, numiter, errors, sty_vec, kappa, tau, lamb
 
     sgtitle('$T$ Learnt Transform Sparsity Structure', 'Interpreter', 'latex');
 
-    path = fullfile('plots', file_name + "_sparsity_struct" + ".pdf");
+    path = fullfile(folder, file_name + "_sparsity_struct" + ".pdf");
     
     exportgraphics(gcf, path, 'ContentType', 'vector');
 

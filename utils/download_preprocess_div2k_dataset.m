@@ -8,7 +8,7 @@ unzip(filename);
 delete(filename);
 
 input_folder = 'DIV2K_valid_HR';     
-output_folder_data = 'DIV2K_valid_HR_data';
+output_folder_data = 'DIV2K_valid_HR_data_full';
 % output_folder_png = 'DIV2K_valid_HR_png';
 target_size = [1024, 1024];
 

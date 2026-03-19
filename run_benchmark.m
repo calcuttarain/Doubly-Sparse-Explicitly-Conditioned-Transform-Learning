@@ -12,7 +12,7 @@ addpath('utils/');
 T0_list = [6];
 T1_list = [20];
 
-patch_size_list = [64, 256];
+patch_size_list = [1];
 
 input_folders_datasets = {'data', 'DIV2K_valid_HR_data'};
 train_sets = { {'Barbara', 'Couple', 'Lena', 'Cameraman'}, ...
@@ -28,7 +28,7 @@ bresler_lambdas = [2.1e-9];
 numiter = 1000;
 
 % lambda search loop parameters for Doubly Sparse Conditioned Transform
-max_iter = 3;                                     % maximum number of iterations
+max_iter = 3;                                      % maximum number of iterations
 tol_sty_pct = 1;                                   % sparsity percent tolerance
 global_lambda_min = 1e-10;                         % left endpoint of search interval
 global_lambda_max = 1e3;                           % right endpoint of search interval
@@ -156,7 +156,7 @@ for iter_bresler_lambda = 1:length(bresler_lambdas)
                     time_doubly_cond = toc;
 
                     if (iter > 1) && (abs(sty_pct - sty_pct_lambda_search(iter - 1)) <= 0.00001)
-                        local_paramsin.relaxation = local_paramsin.relaxation / 10
+                        local_paramsin.relaxation = local_paramsin.relaxation / 10;
                     end
             
                     sty_pct_lambda_search(iter) = sty_pct;
