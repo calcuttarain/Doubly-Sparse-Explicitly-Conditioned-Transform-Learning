@@ -9,23 +9,30 @@ addpath('utils/');
 % T1_list = [0.15, 0.20, 0.25, 0.30];
 % 
 % patch_size_list = [64, 121, 196, 256];
-T0_list = [6];
-T1_list = [20];
+T0_list = [6, 8];   % sparsity level for each representation
+T1_list = [20];     % Structured Transforms sparsity percent
 
-patch_size_list = [1];
+patch_size_list = [64, 256]; % patch size, transform size
 
+% bresler_lambdas = linspace(2.1e-1, 2.1e-13, 2);
+bresler_lambdas = [2.1e-9];
+numiter = 200;
+
+%bresler_methods = {'UnstructuredBresler', 'StructuredBresler', 'StructuredBreslerCF'};
+bresler_methods = {'UnstructuredBresler'};
+
+%%% datasets
 input_folders_datasets = {'data', 'DIV2K_valid_HR_data'};
 train_sets = { {'Barbara', 'Couple', 'Lena', 'Cameraman'}, ...
                {'0801', '0802', '0803', '0804', '0805', '0806', '0807'} };
 test_sets  = { {'Hill', 'Man', 'Baboon', 'MRI'}, ...
                {'0808', '0809', '0810'} };
 
+% generate parameters grid and datasets configuration
 [parameters_settings, datasets_by_n] = generate_settings(T0_list, T1_list, patch_size_list, input_folders_datasets, train_sets, test_sets);
 
-bresler_methods = {'UnstructuredBresler', 'StructuredBresler', 'StructuredBreslerCF'};
-% bresler_lambdas = linspace(2.1e-1, 2.1e-13, 2);
-bresler_lambdas = [2.1e-9];
-numiter = 1000;
+% datasets are frozen for read-only 
+SharedDatasets = parallel.pool.Constant(datasets_by_n);
 
 % lambda search loop parameters for Doubly Sparse Conditioned Transform
 max_iter = 3;                                      % maximum number of iterations
@@ -44,12 +51,20 @@ file_name = 'global_settings.mat';
 path = fullfile(folder, file_name);
 save(path);
 
-
 %%%%%%%%%%%%%%%%%%%%%%%% Big For Loop %%%%%%%%%%%%%%%%%%%%%%%%
 for iter_bresler_lambda = 1:length(bresler_lambdas)
     bresler_lambda = bresler_lambdas(iter_bresler_lambda);
 
-    for iter_param_setting = 1:length(parameters_settings)
+    % paralelize on parameters grid
+    parfor iter_param_setting = 1:length(parameters_settings)
+        % t = getCurrentTask();
+        % if isempty(t)
+        %     worker_id = 0; 
+        % else
+        %     worker_id = t.ID; 
+        % end
+        % fprintf('Worker %d started iteration %d\n', worker_id, iter_param_setting);
+        paramsin = struct(); 
         results = cell(1, length(bresler_methods));
 
         %%% extract parameters
@@ -57,10 +72,11 @@ for iter_bresler_lambda = 1:length(bresler_lambdas)
         paramsin.T0 = parameters_settings(iter_param_setting).T0;
         paramsin.T1 = parameters_settings(iter_param_setting).T1;
         n = parameters_settings(iter_param_setting).patch_size;
+        idx_n = parameters_settings(iter_param_setting).patch_size_idx;
         dataset_idx = parameters_settings(iter_param_setting).dataset_idx;
 
-        paramsin.YH_train = datasets_by_n([datasets_by_n.n] == n).YH_train{dataset_idx};
-        paramsin.YH_test = datasets_by_n([datasets_by_n.n] == n).YH_test{dataset_idx};
+        paramsin.YH_train = SharedDatasets.Value(idx_n).YH_train{dataset_idx};
+        paramsin.YH_test  = SharedDatasets.Value(idx_n).YH_test{dataset_idx};
 
         %%% compute the rest of the parameters
 
@@ -76,8 +92,8 @@ for iter_bresler_lambda = 1:length(bresler_lambdas)
 
         paramsin.numiter = numiter;
 
-        %%% methods parfor
-        parfor iter_bresler_method = 1:length(bresler_methods)
+        %%% methods for
+        for iter_bresler_method = 1:length(bresler_methods)
             bresler_method = bresler_methods{iter_bresler_method};
 
             local_paramsin = paramsin;
@@ -96,6 +112,8 @@ for iter_bresler_lambda = 1:length(bresler_lambdas)
                 local_paramsin.rho = cond(paramsout.(bresler_method).transform);
                 local_paramsin.tau = norm(paramsout.(bresler_method).transform, 'fro');
 
+                % if the condition number yielded by the bresler method is
+                % unstable, throw an error
                 if local_paramsin.rho > rho_max || isnan(local_paramsin.rho)
                     error('TRANSFORM:PoorConditioningBreslerMethod', ...
                           'Condition number too high (%.2e).', local_paramsin.rho);
@@ -134,6 +152,7 @@ for iter_bresler_lambda = 1:length(bresler_lambdas)
                 lastwarn('');
     
                 sty_pct_lambda_search = NaN(1, max_iter);
+                lambdas_lambda_search = NaN(1, max_iter);
                 lambda_min = global_lambda_min;
                 lambda_max = global_lambda_max;
                 local_paramsin.relaxation = 0.01;
@@ -146,6 +165,7 @@ for iter_bresler_lambda = 1:length(bresler_lambdas)
                 sty_vec = [];
                 time_doubly_cond = 0;
     
+                % secant method could be used instead
                 for iter = 1:max_iter
                     lambda_mid = exp((log(lambda_min) + log(lambda_max)) / 2);
     
@@ -155,10 +175,21 @@ for iter_bresler_lambda = 1:length(bresler_lambdas)
                     [T_proposed, X_proposed, error_proposed, sty_pct, sty_vec] = StructuredConditioned(local_paramsin);
                     time_doubly_cond = toc;
 
+                    % 'restart' lambda search loop with a tighter relaxation parameter 
+                    % if the sparsity percentage stagnates
                     if (iter > 1) && (abs(sty_pct - sty_pct_lambda_search(iter - 1)) <= 0.00001)
                         local_paramsin.relaxation = local_paramsin.relaxation / 10;
+
+                        lambdas_lambda_search(iter) = local_paramsin.lambda;
+                        sty_pct_lambda_search(iter) = sty_pct;
+
+                        lambda_min = global_lambda_min;
+                        lambda_max = global_lambda_max;
+
+                        continue;
                     end
             
+                    lambdas_lambda_search(iter) = local_paramsin.lambda;
                     sty_pct_lambda_search(iter) = sty_pct;
     
                     if abs(sty_pct - local_paramsin.T1) <= tol_sty_pct
@@ -183,6 +214,7 @@ for iter_bresler_lambda = 1:length(bresler_lambdas)
                 paramsout.(method).sty_vec = sty_vec;
                 paramsout.(method).lambda_search_iterations = iter;
                 paramsout.(method).sty_pct_lambda_search = sty_pct_lambda_search(1:iter);
+                paramsout.(method).lambdas_lambda_search = lambdas_lambda_search(1:iter);
                 paramsout.(method).time = time_doubly_cond;
             
                 [msg, id] = lastwarn;
@@ -222,9 +254,12 @@ for iter_bresler_lambda = 1:length(bresler_lambdas)
         file = sprintf('results_L%d_P%d.mat', iter_bresler_lambda, iter_param_setting);
         
         path = fullfile(folder, file);
-        
-        save(path, 'results');
-    
-        clear results;
+
+        parsave_results(path, results);
     end
+end
+
+% parsave_results func is used by workers
+function parsave_results(filepath, results)
+    save(filepath, 'results');
 end

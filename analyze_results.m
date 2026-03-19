@@ -2,11 +2,12 @@ clear; clc; close all;
 addpath('utils/');
 
 %%% test parameters
-input_folder = 'results_2026-03-18_1901'; % for example
-output_folder = 'plots';
+timestamp = '2026-03-19_2048'; % for example
+input_folder = "results_" + timestamp; 
+output_folder = "plots_" + timestamp;
 
 lambda_idx = 1;
-parameters_settings_idx = 1;
+parameters_settings_idx = 8;
 
 %%% load
 load(fullfile(input_folder,"global_settings.mat"));
@@ -22,7 +23,7 @@ for iter = 1:length(results)
     status = results{iter}.status;
 
     %%% handle error
-    if strcmp(status, 'Failed') || strcmp(status, 'TRANSFORM:PoorConditioningBreslerMethod')
+    if strcmp(status, 'Failed') || strcmp(status, 'Skipped_BadCondition')
         fprintf('--- Error Report ---\n');
         fprintf('Status: %s\n', status);
         fprintf('Method: %s\n', bresler_methods{iter});

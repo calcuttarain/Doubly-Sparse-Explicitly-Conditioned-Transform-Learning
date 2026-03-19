@@ -83,7 +83,11 @@ function [T, XT, error, sty_pct, sty_vec] = StructuredConditioned(paramsin)
 
             lambda_start = relaxation * max(max(abs(T_temp)));
 
-            decreasing_lambdas = linspace(lambda, lambda, numiter);
+            if lambda_start < lambda 
+                lambda_start = lambda;
+            end
+
+            decreasing_lambdas = linspace(lambda_start, lambda, numiter);
 
             continue;
         end
