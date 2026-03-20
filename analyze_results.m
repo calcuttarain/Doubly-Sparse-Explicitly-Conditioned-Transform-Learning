@@ -2,7 +2,7 @@ clear; clc; close all;
 addpath('utils/');
 
 %%% test parameters
-timestamp = '2026-03-20_1422';     % for example
+timestamp = '2026-03-20_1638';     % for example
 parameters_settings_idx = 1;       % for example
 
 input_folder = "results_" + timestamp; 
@@ -38,7 +38,7 @@ load(fullfile(input_folder, target_file));
 local_idx = parameters_settings_idx - start_idx_of_batch + 1;
 results = batch_results{local_idx}.result;
 
-subfolder = sprintf('plots_P%d', parameters_settings_idx);
+subfolder = sprintf('plots_P_%d', parameters_settings_idx);
 target_folder = fullfile(output_folder, subfolder);
 
 % Bresler methods for loop

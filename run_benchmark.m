@@ -10,10 +10,9 @@ T1_list = [5, 10, 15, 20, 25];                          % Structured Transforms 
 patch_size_list = [64, 121, 196, 256];                  % patch size, transform size
 
 bresler_lambdas = linspace(2.1e-1, 2.1e-13, 5000);      % input \lambda parameter for Bresler methods list
-numiter = 2;                                            % number of iterations for the Alternating Minimization algorithms
+numiter = 6000;                                         % number of iterations for the Alternating Minimization algorithms
 
-%bresler_methods = {'UnstructuredBresler', 'StructuredBresler', 'StructuredBreslerCF'};
-bresler_methods = {'UnstructuredBresler'};
+bresler_methods = {'UnstructuredBresler', 'StructuredBresler', 'StructuredBreslerCF'};
 
 %%% datasets
 input_folders_datasets = {'data', 'DIV2K_valid_HR_data'};
@@ -24,19 +23,20 @@ test_sets  = { {'Hill', 'Man', 'Baboon', 'MRI'}, ...
 
 % generate parameters grid and datasets configuration
 [parameters_settings, datasets_by_n] = generate_settings(bresler_lambdas, T0_list, T1_list, patch_size_list, input_folders_datasets, train_sets, test_sets);
+
 % datasets and settings grid are frozen for read-only 
 SharedDatasets = parallel.pool.Constant(datasets_by_n);
 SharedSettings = parallel.pool.Constant(parameters_settings);
 
 % lambda search loop parameters for Doubly Sparse Conditioned Transform
-max_iter = 1;                                     % maximum number of iterations
+max_iter = 30;                                     % maximum number of iterations
 tol_sty_pct = 1;                                   % sparsity percent tolerance
 global_lambda_min = 1e-10;                         % left endpoint of search interval
 global_lambda_max = 1e3;                           % right endpoint of search interval
 
 % batches settings
 num_total_settings = length(parameters_settings);
-batch_size = 3; 
+batch_size = 100; 
 num_batches = ceil(num_total_settings / batch_size);
 
 % save global settings
@@ -107,7 +107,7 @@ parfor batch_idx = 1:num_batches
     
                 lastwarn('');
                 tic;
-                [paramsout.(bresler_method).transform, paramsout.(bresler_method).representation, paramsout.(bresler_method).error] = feval(bresler_method, local_paramsin);
+                [paramsout.(bresler_method).transform, ~, paramsout.(bresler_method).error] = feval(bresler_method, local_paramsin);
                 paramsout.(bresler_method).time = toc;
     
                 local_paramsin.rho = cond(paramsout.(bresler_method).transform);
@@ -123,7 +123,7 @@ parfor batch_idx = 1:num_batches
                 if ~strcmp(bresler_method, 'UnstructuredBresler')
                     paramsout.(bresler_method).transform = sparse(paramsout.(bresler_method).transform);
                 end
-                paramsout.(bresler_method).representation = sparse(paramsout.(bresler_method).representation);
+                % paramsout.(bresler_method).representation = sparse(paramsout.(bresler_method).representation);
     
                 [msg, id] = lastwarn;
                 if ~isempty(msg)
@@ -136,10 +136,10 @@ parfor batch_idx = 1:num_batches
                 method = 'UnstructuredConditioned';
                 lastwarn('');
                 tic;
-                [paramsout.(method).transform, paramsout.(method).representation, paramsout.(method).error] = UnstructuredConditioned(local_paramsin);
+                [paramsout.(method).transform, ~, paramsout.(method).error] = UnstructuredConditioned(local_paramsin);
                 paramsout.(method).time = toc;
     
-                paramsout.(method).representation = sparse(paramsout.(method).representation);
+                % paramsout.(method).representation = sparse(paramsout.(method).representation);
     
                 [msg, id] = lastwarn;
                 if ~isempty(msg)
@@ -160,7 +160,7 @@ parfor batch_idx = 1:num_batches
     
                 lambda_mid = NaN;
                 T_proposed = [];
-                X_proposed = [];
+                % X_proposed = [];
                 error_proposed = [];
                 sty_pct = NaN;
                 sty_vec = [];
@@ -173,7 +173,7 @@ parfor batch_idx = 1:num_batches
                     local_paramsin.lambda = lambda_mid;
     
                     tic;
-                    [T_proposed, X_proposed, error_proposed, sty_pct, sty_vec] = StructuredConditioned(local_paramsin);
+                    [T_proposed, ~, error_proposed, sty_pct, sty_vec] = StructuredConditioned(local_paramsin);
                     time_doubly_cond = toc;
     
                     % 'restart' lambda search loop with a tighter relaxation parameter 
@@ -208,7 +208,7 @@ parfor batch_idx = 1:num_batches
                 method = 'StructuredConditioned';
     
                 paramsout.(method).transform = sparse(T_proposed);
-                paramsout.(method).sparse_representation = sparse(X_proposed);
+                % paramsout.(method).sparse_representation = sparse(X_proposed);
                 paramsout.(method).error = error_proposed;
                 paramsout.(method).lambda = lambda_mid;
                 paramsout.(method).sty_pct = sty_pct;
