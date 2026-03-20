@@ -1,8 +1,8 @@
 ---
 
-Run `./run_benchmark.m`. It outputs a folder with results containing a timestamp.
+Run `./run_benchmark.m`. It outputs a timestamped folder with results organized in batches.
 
-Run `./analyze_results.m` by specifying the parameters `timestamp`, `lambda_idx`, and `parameters_settings_idx` at the beginning of the script. It outputs a timestamped folder containing the generated plots, and displays an error report for any failed configurations.
+Run `./analyze_results.m` by specifying the parameters `timestamp` and `parameters_settings_idx` at the beginning of the script. It outputs a timestamped folder containing the generated plots, and displays an error report for any failed configurations.
 
 ---
 

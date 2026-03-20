@@ -1,20 +1,23 @@
-function [settings, datasets_by_n] = generate_settings(T0_list, T1_list, patch_size_list, datasets_input_folders, train_sets, test_sets)
+function [settings, datasets_by_n] = generate_settings(bresler_lambdas, T0_list, T1_list, patch_size_list, datasets_input_folders, train_sets, test_sets)
     
     % generate settings
-    total_configs = length(datasets_input_folders) * length(T0_list) * length(T1_list) * length(patch_size_list);
+    total_configs = length(datasets_input_folders) * length(T0_list) * length(T1_list) * length(bresler_lambdas) * length(patch_size_list);
     settings(total_configs).T0 = []; 
     
     iter = 0;
-    for it0 = 1:length(T0_list)
-        for it1 = 1:length(T1_list)
-            for ip = 1:length(patch_size_list)
-                for ids = 1:length(datasets_input_folders)
-                    iter = iter + 1;
-                    settings(iter).T0 = T0_list(it0);
-                    settings(iter).T1 = T1_list(it1);
-                    settings(iter).patch_size = patch_size_list(ip);
-                    settings(iter).patch_size_idx = ip;
-                    settings(iter).dataset_idx = ids; 
+    for itbl = 1:length(bresler_lambdas)
+        for it0 = 1:length(T0_list)
+            for it1 = 1:length(T1_list)
+                for ip = 1:length(patch_size_list)
+                    for ids = 1:length(datasets_input_folders)
+                        iter = iter + 1;
+                        settings(iter).bresler_lambda = bresler_lambdas(itbl);
+                        settings(iter).T0 = T0_list(it0);
+                        settings(iter).T1 = T1_list(it1);
+                        settings(iter).patch_size = patch_size_list(ip);
+                        settings(iter).patch_size_idx = ip;
+                        settings(iter).dataset_idx = ids; 
+                    end
                 end
             end
         end

@@ -2,23 +2,46 @@ clear; clc; close all;
 addpath('utils/');
 
 %%% test parameters
-timestamp = '2026-03-19_2048';     % for example
-lambda_idx = 1;                    % for example
+timestamp = '2026-03-20_1422';     % for example
 parameters_settings_idx = 1;       % for example
 
 input_folder = "results_" + timestamp; 
 output_folder = "plots_" + timestamp;
 
-%%% load
+%%% load results from batches
 load(fullfile(input_folder,"global_settings.mat"));
 
-file_name = sprintf('results_L%d_P%d.mat', lambda_idx, parameters_settings_idx);
-load(fullfile(input_folder, file_name));
+files = dir(fullfile(input_folder, 'results_batch_*_to_*.mat'));
+target_file = '';
+start_idx_of_batch = 0;
 
-subfolder = sprintf('plots_L%d_P%d', lambda_idx, parameters_settings_idx);
+for k = 1:length(files)
+    tokens = regexp(files(k).name, 'results_batch_(\d+)_to_(\d+)\.mat', 'tokens');
+    if ~isempty(tokens)
+        s_idx = str2double(tokens{1}{1});
+        e_idx = str2double(tokens{1}{2});
+        
+        if parameters_settings_idx >= s_idx && parameters_settings_idx <= e_idx
+            target_file = files(k).name;
+            start_idx_of_batch = s_idx;
+            break;
+        end
+    end
+end
 
+if isempty(target_file)
+    error('Batch with parameters_settings_idx %d not found!', parameters_settings_idx);
+end
+
+load(fullfile(input_folder, target_file));
+
+local_idx = parameters_settings_idx - start_idx_of_batch + 1;
+results = batch_results{local_idx}.result;
+
+subfolder = sprintf('plots_P%d', parameters_settings_idx);
 target_folder = fullfile(output_folder, subfolder);
 
+% Bresler methods for loop
 for iter = 1:length(results)
     status = results{iter}.status;
 
