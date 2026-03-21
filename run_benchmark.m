@@ -36,7 +36,7 @@ global_lambda_max = 1e3;                           % right endpoint of search in
 
 % batches settings
 num_total_settings = length(parameters_settings);
-batch_size = 100; 
+batch_size = 10; 
 num_batches = ceil(num_total_settings / batch_size);
 
 % save global settings
