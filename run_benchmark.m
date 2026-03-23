@@ -9,7 +9,7 @@ T1_list = [5, 10, 15, 20, 25];                          % Structured Transforms 
 
 patch_size_list = [64, 121, 196, 256];                  % patch size, transform size
 
-bresler_lambdas = linspace(2.1e-1, 2.1e-13, 5000);      % input \lambda parameter for Bresler methods list
+bresler_lambdas = linspace(2.1e-1, 2.1e-13, 500);       % input \lambda parameter for Bresler methods list
 numiter = 6000;                                         % number of iterations for the Alternating Minimization algorithms
 
 bresler_methods = {'UnstructuredBresler', 'StructuredBresler', 'StructuredBreslerCF'};
@@ -36,8 +36,10 @@ global_lambda_max = 1e3;                           % right endpoint of search in
 
 % batches settings
 num_total_settings = length(parameters_settings);
-batch_size = 10; 
+batch_size = 5; 
 num_batches = ceil(num_total_settings / batch_size);
+
+num_workers = 10;
 
 % save global settings
 timestamp = datestr(now, 'yyyy-mm-dd_HHMM');
@@ -53,14 +55,33 @@ save(path);
 
 %%%%%%%%%%%%%%%%%%%%%%%% Big ParFor Loop %%%%%%%%%%%%%%%%%%%%%%%%
 
+parpool(num_workers);
+
 % paralelize on batches
 parfor batch_idx = 1:num_batches
+    batch_start_time = tic;
+
+    warning('off', 'MATLAB:nearlySingularMatrix');
+    warning('off', 'MATLAB:singularMatrix');
+    warning('off', 'MATLAB:illConditionedMatrix');
+    warning('off', 'MATLAB:rankDeficientMatrix');
+    
     start_idx = (batch_idx - 1) * batch_size + 1;
     end_idx = min(batch_idx * batch_size, num_total_settings);
+
+    t = getCurrentTask();
+    if isempty(t)
+        worker_id = 0; 
+    else
+        worker_id = t.ID;
+    end
     
+    batch_len = end_idx - start_idx + 1;
     batch_results = cell(end_idx - start_idx + 1, 1);
 
-    for i = 1:(end_idx - start_idx + 1)
+    for i = 1:batch_len
+
+        fprintf('[Worker %02d] Batch %04d: Processing result %d out of %d...\n', worker_id, batch_idx, i, batch_len);
         iter_param_setting = start_idx + i - 1;
 
         paramsin = struct(); 
@@ -68,13 +89,14 @@ parfor batch_idx = 1:num_batches
     
         %%% extract parameters
     
-        paramsin.T0 = SharedSettings.Value(iter_param_setting).T0;
-        paramsin.T1 = SharedSettings.Value(iter_param_setting).T1;
-        n = SharedSettings.Value(iter_param_setting).patch_size;
-        bresler_lambda = SharedSettings.Value(iter_param_setting).bresler_lambda;
+        setting = SharedSettings.Value(iter_param_setting);
+        paramsin.T0 = setting.T0;
+        paramsin.T1 = setting.T1;
+        n = setting.patch_size;
+        bresler_lambda = setting.bresler_lambda;
     
-        idx_n = SharedSettings.Value(iter_param_setting).patch_size_idx;
-        dataset_idx = SharedSettings.Value(iter_param_setting).dataset_idx;
+        idx_n = setting.patch_size_idx;
+        dataset_idx = setting.dataset_idx;
     
         paramsin.YH_train = SharedDatasets.Value(idx_n).YH_train{dataset_idx};
         paramsin.YH_test  = SharedDatasets.Value(idx_n).YH_test{dataset_idx};
@@ -105,10 +127,12 @@ parfor batch_idx = 1:num_batches
             try
                 %%%%%%%%%%% Run Bresler Method %%%%%%%%%%%
     
-                lastwarn('');
+                % lastwarn('');
                 tic;
                 [paramsout.(bresler_method).transform, ~, paramsout.(bresler_method).error] = feval(bresler_method, local_paramsin);
                 paramsout.(bresler_method).time = toc;
+
+                fprintf('[Worker %02d] Result %d/%d: Finished Bresler method (%s) in %.2f sec.\n', worker_id, i, batch_len, bresler_method, paramsout.(bresler_method).time);
     
                 local_paramsin.rho = cond(paramsout.(bresler_method).transform);
                 local_paramsin.tau = norm(paramsout.(bresler_method).transform, 'fro');
@@ -125,32 +149,34 @@ parfor batch_idx = 1:num_batches
                 end
                 % paramsout.(bresler_method).representation = sparse(paramsout.(bresler_method).representation);
     
-                [msg, id] = lastwarn;
-                if ~isempty(msg)
-                    paramsout.(bresler_method).warning.msg = msg;
-                    paramsout.(bresler_method).warning.id = id;
-                end
+                % [msg, id] = lastwarn;
+                % if ~isempty(msg)
+                %     paramsout.(bresler_method).warning.msg = msg;
+                %     paramsout.(bresler_method).warning.id = id;
+                % end
     
                 %%%%%%%%%%% Unstructured Conditioned Method %%%%%%%%%%%
     
                 method = 'UnstructuredConditioned';
-                lastwarn('');
+                % lastwarn('');
                 tic;
                 [paramsout.(method).transform, ~, paramsout.(method).error] = UnstructuredConditioned(local_paramsin);
                 paramsout.(method).time = toc;
+
+                fprintf('[Worker %02d] Result %d/%d: Finished Unstructured Conditioned in %.2f sec.\n', worker_id, i, batch_len, paramsout.(method).time);
     
                 % paramsout.(method).representation = sparse(paramsout.(method).representation);
     
-                [msg, id] = lastwarn;
-                if ~isempty(msg)
-                    paramsout.(method).warning.msg = msg;
-                    paramsout.(method).warning.id = id;
-                end
+                % [msg, id] = lastwarn;
+                % if ~isempty(msg)
+                %     paramsout.(method).warning.msg = msg;
+                %     paramsout.(method).warning.id = id;
+                % end
     
     
                 %%%%%%%%%%% Structured Conditioned Method %%%%%%%%%%%
     
-                lastwarn('');
+                % lastwarn('');
     
                 sty_pct_lambda_search = NaN(1, max_iter);
                 lambdas_lambda_search = NaN(1, max_iter);
@@ -175,6 +201,8 @@ parfor batch_idx = 1:num_batches
                     tic;
                     [T_proposed, ~, error_proposed, sty_pct, sty_vec] = StructuredConditioned(local_paramsin);
                     time_doubly_cond = toc;
+
+                    fprintf('[Worker %02d] Result %d/%d: Doubly Conditioned iter %d in %.2f sec, current sparsity = %.2f%% (target %d%%).\n', worker_id, i, batch_len, iter, time_doubly_cond, sty_pct, local_paramsin.T1);
     
                     % 'restart' lambda search loop with a tighter relaxation parameter 
                     % if the sparsity percentage stagnates
@@ -204,6 +232,8 @@ parfor batch_idx = 1:num_batches
                     end
     
                 end
+
+                fprintf('[Worker %02d] Result %d/%d: Finished Structured Conditioned.\n', worker_id, i, batch_len);
     
                 method = 'StructuredConditioned';
     
@@ -218,11 +248,11 @@ parfor batch_idx = 1:num_batches
                 paramsout.(method).lambdas_lambda_search = lambdas_lambda_search(1:iter);
                 paramsout.(method).time = time_doubly_cond;
     
-                [msg, id] = lastwarn;
-                if ~isempty(msg)
-                    paramsout.(method).warning.msg = msg;
-                    paramsout.(method).warning.id = id;
-                end
+                % [msg, id] = lastwarn;
+                % if ~isempty(msg)
+                %     paramsout.(method).warning.msg = msg;
+                %     paramsout.(method).warning.id = id;
+                % end
     
                 %%% save result
     
@@ -239,6 +269,7 @@ parfor batch_idx = 1:num_batches
             catch ME
                 result.ME = ME;
     
+                result.paramsin.bresler_method = bresler_method;
                 result.paramsin.parameters_settings_idx = iter_param_setting;
                 if strcmp(ME.identifier, 'TRANSFORM:PoorConditioningBreslerMethod')
                     result.status = 'Skipped_BadCondition';
@@ -254,12 +285,13 @@ parfor batch_idx = 1:num_batches
     end
 
     %%% save to disk
+    batch_time = toc(batch_start_time);
     file = sprintf('results_batch_%07d_to_%07d.mat', start_idx, end_idx);
     path = fullfile(folder, file);
-    parsave_batch(path, batch_results, start_idx, end_idx);
+    parsave_batch(path, batch_results, batch_time, start_idx, end_idx);
 end
 
 % parsave_results func is used by workers
-function parsave_batch(filepath, batch_results, start_idx, end_idx)
-    save(filepath, 'batch_results', 'start_idx', 'end_idx');
+function parsave_batch(filepath, batch_results, batch_time, start_idx, end_idx)
+    save(filepath, 'batch_results', 'batch_time', 'start_idx', 'end_idx');
 end
