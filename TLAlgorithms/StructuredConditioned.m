@@ -1,15 +1,5 @@
-function [T, XT, error, sty_pct, sty_vec] = StructuredConditioned(paramsin)
+function [T, XT, error, sty_pct, sty_vec] = StructuredConditioned(T, Y, Y_test, numiter, STY, STY_te, rho, tau, lambda)
     addpath('TLAlgorithms/StructuredConditionedTLRoutines/');
-    T = paramsin.W0;
-    Y = paramsin.W0 * paramsin.YH_train;
-    Y_test = paramsin.W0 * paramsin.YH_test;
-    numiter = paramsin.numiter;
-    rho = paramsin.rho;
-    tau = paramsin.tau;
-    STY = paramsin.STY_tr;
-    STY_te = paramsin.STY_te;
-    lambda = paramsin.lambda;
-    relaxation = paramsin.relaxation;
 
     [K, n] = size(T); 
     XT = zeros(K, size(Y, 2)); 
@@ -81,11 +71,7 @@ function [T, XT, error, sty_pct, sty_vec] = StructuredConditioned(paramsin)
             lambdas = get_spectrum_doubly(L, rho, tau);
             T_temp = Q * diag(lambdas) * Q';
 
-            lambda_start = relaxation * max(max(abs(T_temp)));
-
-            if lambda_start < lambda 
-                lambda_start = lambda;
-            end
+            lambda_start = 0.01 * max(max(abs(T_temp)));
 
             decreasing_lambdas = linspace(lambda_start, lambda, numiter);
 

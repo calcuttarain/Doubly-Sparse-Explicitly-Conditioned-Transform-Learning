@@ -13,16 +13,8 @@
 % ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 % OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-function [W,XB,error] = UnstructuredConditioned(paramsin)
+function [W,XB,error] = UnstructuredConditioned(W, Y, Y_test, numiter, STY, STY_te, kappa, targetWnorm)
     addpath('TLAlgorithms/ConditionedTLRoutines/');
-    W = paramsin.W0;
-    Y = paramsin.YH_train;
-    Y_test = paramsin.YH_test;
-    numiter = paramsin.numiter;
-    kappa = paramsin.rho;
-    targetWnorm = paramsin.tau;
-    STY = paramsin.STY_tr;
-    STY_te = paramsin.STY_te;
 
 % Implementation adapted on the transform learning framework from the series of
 % papers by S. Ravishankar and Y. Bresler
