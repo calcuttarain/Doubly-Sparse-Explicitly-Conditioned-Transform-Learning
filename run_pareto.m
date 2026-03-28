@@ -14,7 +14,7 @@ patch_size_list = [64, 121];                                 % patch size, trans
 
 bresler_lambdas = linspace(2.1e-1, 2.1e-13, 20);             % input \lambda parameter for Bresler method
 
-n_pareto_points = 50;                                        % number of points/trials for a pareto plot
+n_pareto_points = 20;                                        % number of points/trials for a pareto plot
 
 ell_1_lambdas = linspace(0, 1e-1, n_pareto_points);          % input \lambda parameter for ell_1 penalization in the Structured Conditioned Method
 
@@ -104,7 +104,7 @@ for ps_idx = 1:length(parameters_settings)
 
     %%% run Conditioned Structured Method Init
     tic;
-    [T_init, ~, error_sc, ~, sty_vec] = StructuredConditioned(W0, YH_train, YH_test, numiter_init, STY_tr, STY_te, rho, tau, 1e-2, false);
+    [T_init, ~, error_sc, ~, sty_vec] = StructuredConditioned(W0, YH_train, YH_test, numiter_init, STY_tr, STY_te, rho, tau, 0, false);
     time_sc = toc;
 
     init.sc_method.transform = sparse(T_init);
