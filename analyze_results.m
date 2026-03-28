@@ -1,11 +1,11 @@
 clear; clc; close all;
 addpath('utils/');
 
-folder_path = 'results_2026-03-28_1211'; 
-file_name = 'results_blidx_0000001_psidx_0000001.mat';
+folder_path = 'results_2026-03-28_1920'; 
+file_name = 'results_1.mat';
 full_path = fullfile(folder_path, file_name);
 
-target_idx = 2; 
+target_idx = 1; 
 
 show_plots = true;
 output_folder = folder_path; 

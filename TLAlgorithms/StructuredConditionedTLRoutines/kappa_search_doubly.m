@@ -9,7 +9,7 @@ function [k1, k2, l_star] = kappa_search_doubly(d, rho)
     n = length(d);
 
     head_sum = cumsum(d);
-    tail_sum = cumsum(d, 'reverse'); 
+    tail_sum = flip(cumsum(flip(d))); 
 
     lowerbound = d(1); 
 

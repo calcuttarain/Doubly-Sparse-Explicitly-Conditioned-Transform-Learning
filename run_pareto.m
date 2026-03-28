@@ -16,7 +16,8 @@ bresler_lambdas = linspace(2.1e-1, 2.1e-13, 20);             % input \lambda par
 
 n_pareto_points = 50;                                        % number of points/trials for a pareto plot
 
-ell_1_lambdas = linspace(0, 1e-3, n_pareto_points);          % input \lambda parameter for ell_1 penalization in the Structured Conditioned Method
+ell_1_lambdas = linspace(0, 1e-1, n_pareto_points);          % input \lambda parameter for ell_1 penalization in the Structured Conditioned Method
+
 T1_bresler = linspace(1.0, 0.05, n_pareto_points);           % input sparsity for Bresler method
 
 numiter_init = 4000;                                         % number of iterations for the Alternating Minimization algorithms for initialization
@@ -40,7 +41,7 @@ train_sets = { {'Barbara', 'Couple', 'Lena', 'Cameraman'} };
 test_sets  = { {'Hill', 'Man', 'Baboon', 'MRI'}};
 
 % generate parameters grid and datasets configuration
-[parameters_settings, datasets_by_n] = generate_settings_pareto(T0_list, patch_size_list, input_folders_datasets, train_sets, test_sets);
+[parameters_settings, datasets_by_n] = generate_settings_pareto(bresler_lambdas, T0_list, patch_size_list, input_folders_datasets, train_sets, test_sets);
 
 % save global settings
 timestamp = datestr(now, 'yyyy-mm-dd_HHMM');
@@ -54,105 +55,107 @@ file_name = 'global_settings.mat';
 path = fullfile(folder, file_name);
 save(path);
 
-total_configs = length(bresler_lambdas) * length(parameters_settings);
-
 %%%%%%%%%%%%%%%%%%%%%%%% For Loop %%%%%%%%%%%%%%%%%%%%%%%%
 
-for bl_idx = 1:length(bresler_lambdas)
-    for ps_idx = 1:length(parameters_settings)
+for ps_idx = 1:length(parameters_settings)
 
-        time_config = tic;
+    time_config = tic;
 
-        current_config = (bl_idx - 1) * length(parameters_settings) + ps_idx;
-        fprintf('\n-------------- Starting Configuration %d out of %d --------------\n', current_config, total_configs);
+    fprintf('\n-------------- Starting Configuration %d out of %d --------------\n', ps_idx, length(parameters_settings));
 
-        setting = parameters_settings(ps_idx);
+    setting = parameters_settings(ps_idx);
 
-        T0 = setting.T0;
-        n = setting.patch_size;
-        idx_n = setting.patch_size_idx;
-        dataset_idx = setting.dataset_idx;
+    T0 = setting.T0;
+    n = setting.patch_size;
+    idx_n = setting.patch_size_idx;
+    dataset_idx = setting.dataset_idx;
 
-        bresler_lambda = bresler_lambdas(bl_idx);
+    bresler_lambda = setting.bresler_lambda;
 
-        YH_train = datasets_by_n(idx_n).YH_train{dataset_idx};
-        YH_test  = datasets_by_n(idx_n).YH_test{dataset_idx};
+    YH_train = datasets_by_n(idx_n).YH_train{dataset_idx};
+    YH_test  = datasets_by_n(idx_n).YH_test{dataset_idx};
 
-        W0 = kron(dctmtx(sqrt(n)), dctmtx(sqrt(n)));
-        B0 = eye(n);
+    W0 = kron(dctmtx(sqrt(n)), dctmtx(sqrt(n)));
+    B0 = eye(n);
 
-        STY_tr = T0 * ones(1, size(YH_train, 2)); STY_te = T0 * ones(1, size(YH_test, 2));
+    STY_tr = T0 * ones(1, size(YH_train, 2)); STY_te = T0 * ones(1, size(YH_test, 2));
 
-        l2_bresler = bresler_lambda * (norm(YH_train, 'fro'))^2;
-        l3_bresler = l2_bresler;
-        
-        %%% run Bresler Init
+    l2_bresler = bresler_lambda * (norm(YH_train, 'fro'))^2;
+    l3_bresler = l2_bresler;
+    
+    %%% run Bresler Init
+    tic;
+    [B_init, ~, error_bresler] = StructuredBreslerCF(B0, YH_train, YH_test, numiter_init, l2_bresler, l3_bresler, n^2, STY_tr, STY_te);
+    time_bresler = toc;
+
+    fprintf('Done Bresler Init - %.2f seconds\n', time_bresler);
+
+    init.bresler_method.transform = sparse(B_init);
+    init.bresler_method.error = error_bresler;
+
+    %%% get rho and tau
+    rho = cond(B_init);
+    tau = norm(B_init, 'fro');
+
+    setting.rho = rho;
+    setting.tau = tau;
+
+    T1_list = round(T1_bresler * n^2);
+
+    %%% run Conditioned Structured Method Init
+    tic;
+    [T_init, ~, error_sc, ~, sty_vec] = StructuredConditioned(W0, YH_train, YH_test, numiter_init, STY_tr, STY_te, rho, tau, 1e-2, false);
+    time_sc = toc;
+
+    init.sc_method.transform = sparse(T_init);
+    init.sc_method.error = error_sc;
+    init.sc_method.sty_vec = sty_vec;
+
+    fprintf('Done Structured Conditioned Init - %.2f seconds\n', time_sc);
+
+    results = repmat(struct(), 1, n_pareto_points);
+
+    % run methods with warm start
+    for idx = 1:n_pareto_points
+        %%% Bresler Method
         tic;
-        [B_init, ~, ~] = StructuredBreslerCF(B0, YH_train, YH_test, numiter_init, l2_bresler, l3_bresler, T1_bresler(1), STY_tr, STY_te);
+        [W_bresler, ~, error_bresler] = StructuredBreslerCF(B_init, YH_train, YH_test, numiter, l2_bresler, l3_bresler, T1_list(idx), STY_tr, STY_te);
         time_bresler = toc;
 
-        fprintf('Done Bresler Init - %.2f seconds\n', time_bresler);
+        fprintf('-> Done Bresler Warm Start %d out of %d - %.2f seconds\n', idx, n_pareto_points, time_bresler);
 
-        %%% get rho and tau
-        rho = cond(B_init);
-        tau = norm(B_init, 'fro');
+        total = numel(W_bresler);           
+        curr_sty = nnz(W_bresler(:) ~= 0);  
+        sty_pct = 100 * curr_sty / total;
 
-        setting.rho = rho;
-        setting.tau = tau;
+        results(idx).bresler_method.transform = sparse(W_bresler);
+        results(idx).bresler_method.error = error_bresler;
+        results(idx).bresler_method.sty_pct = sty_pct;
+        results(idx).bresler_method.time = time_bresler;
 
-        T1_list = round(T1_bresler * n^2);
+        B_init = W_bresler;
 
-        %%% run Conditioned Structured Method Init
+        %%% Structured Conditioned Method
         tic;
-        [T_init, ~, ~, ~, ~] = StructuredConditioned(W0, YH_train, YH_test, numiter_init, STY_tr, STY_te, rho, tau, 0, false);
+        [T_sc, ~, error_sc, sty_pct_sc, sty_vec_sc] = StructuredConditioned(T_init, YH_train, YH_test, numiter, STY_tr, STY_te, rho, tau, ell_1_lambdas(idx), true);
         time_sc = toc;
 
-        fprintf('Done Structured Conditioned Init - %.2f seconds\n', time_sc);
+        fprintf('-> Done Structured Conditioned Warm Start %d out of %d - %.2f seconds\n', idx, n_pareto_points, time_sc);
 
-        results = repmat(struct(), 1, n_pareto_points);
+        results(idx).structured_conditioned.transform = sparse(T_sc);
+        results(idx).structured_conditioned.error = error_sc;
+        results(idx).structured_conditioned.sty_pct = sty_pct_sc;
+        results(idx).structured_conditioned.sty_vec = sty_vec_sc;
+        results(idx).structured_conditioned.time = time_sc;
 
-        % run methods with warm start
-        for idx = 2:n_pareto_points
-            %%% Bresler Method
-            tic;
-            [W_bresler, ~, error_bresler] = StructuredBreslerCF(B_init, YH_train, YH_test, numiter, l2_bresler, l3_bresler, T1_list(idx), STY_tr, STY_te);
-            time_bresler = toc;
-
-            fprintf('-> Done Bresler Warm Start %d out of %d - %.2f seconds\n', idx, n_pareto_points, time_bresler);
-
-            total = numel(W_bresler);           
-            curr_sty = nnz(W_bresler(:) ~= 0);  
-            sty_pct = 100 * curr_sty / total;
-
-            results(idx).bresler_method.transform = sparse(W_bresler);
-            results(idx).bresler_method.error = error_bresler;
-            results(idx).bresler_method.sty_pct = sty_pct;
-            results(idx).bresler_method.time = time_bresler;
-
-            B_init = W_bresler;
-
-            %%% Structured Conditioned Method
-            tic;
-            [T_sc, ~, error_sc, sty_pct_sc, sty_vec_sc] = StructuredConditioned(T_init, YH_train, YH_test, numiter, STY_tr, STY_te, rho, tau, ell_1_lambdas(idx), true);
-            time_sc = toc;
-
-            fprintf('-> Done Structured Conditioned Warm Start %d out of %d - %.2f seconds\n', idx, n_pareto_points, time_sc);
-
-            results(idx).structured_conditioned.transform = sparse(T_sc);
-            results(idx).structured_conditioned.error = error_sc;
-            results(idx).structured_conditioned.sty_pct = sty_pct_sc;
-            results(idx).structured_conditioned.sty_vec = sty_vec_sc;
-            results(idx).structured_conditioned.time = time_sc;
-
-            T_init = T_sc;
-        end
-
-        time_config = toc(time_config);
-
-        time_config;
-
-        file = sprintf('results_%d.mat', current_config);
-        path = fullfile(folder, file);
-        save(path, 'setting', 'results', 'time_config');
+        T_init = T_sc;
     end
+
+    time_config = toc(time_config);
+
+    time_config;
+
+    file = sprintf('results_%d.mat', ps_idx);
+    path = fullfile(folder, file);
+    save(path, 'setting', 'results', 'init', 'time_config');
 end
