@@ -47,13 +47,13 @@ error.m2.tr = []; error.m2.te = [];
 for i=1:numiter
     
     %Sparse Coding Step
-    X1=(sparse(B))*q;
+    X1=B * q;
     [s]=sort(abs(X1),'descend');
-    X = X1.*(bsxfun(@ge,abs(X1),s(STY)));
+    X = X1 .* (abs(X1) >= s(STY));
 
-    X1_te=(sparse(B))*q_te;
+    X1_te= B * q_te;
     [s_te]=sort(abs(X1_te),'descend');
-    X_test = X1_te.*(bsxfun(@ge,abs(X1_te),s_te(STY_te)));
+    X_test = X1_te .* (abs(X1_te) >= s_te(STY_te));
 %     X = X/norm(X, 'fro');
     
     %Transform Update Step
@@ -64,6 +64,9 @@ for i=1:numiter
     B=D*(LL2);
 %     W = normc(W);
 %     W = sqrt(n)*W/norm(W, 'fro');
+
+    error.m1.tr = zeros(1, numiter); error.m1.te = zeros(1, numiter);
+    error.m2.tr = zeros(1, numiter); error.m2.te = zeros(1, numiter);
 
     %Post-thresholding
     if(i>cbb) %done only after initial `cbb' number of iterations
@@ -79,10 +82,14 @@ for i=1:numiter
         B = B + ((rand(K,n) - 0.5)*cll);
     end
 
-    error.m1.tr = [error.m1.tr norm(X - B*Y, 'fro')];
-    error.m2.tr = [error.m2.tr norm(X - B*Y, 'fro')/norm(B*Y, 'fro')];
-
-    error.m1.te = [error.m1.te norm(X_test - B*Y_test, 'fro')];
-    error.m2.te = [error.m2.te norm(X_test - B*Y_test, 'fro')/norm(B*Y_test, 'fro')];
+    BY = B * Y;
+    BY_test = B * Y_test;
+    norm_BY = norm(BY, 'fro');
+    norm_BY_test = norm(BY_test, 'fro');
+    
+    error.m1.tr(i) = norm(X - BY, 'fro');
+    error.m2.tr(i) = error.m1.tr(i) / norm_BY;
+    error.m1.te(i) = norm(X_test - BY_test, 'fro');
+    error.m2.te(i) = error.m1.te(i) / norm_BY_test;
 end
 XB(:,ix)=X;

@@ -1,4 +1,4 @@
-function [T, XT, error, sty_pct, sty_vec] = StructuredConditioned(T, Y, Y_test, numiter, STY, STY_te, rho, tau, lambda)
+function [T, XT, error, sty_pct, sty_vec] = StructuredConditioned(T, Y, Y_test, numiter, STY, STY_te, rho, tau, lambda, warm_start)
     addpath('TLAlgorithms/StructuredConditionedTLRoutines/');
 
     [K, n] = size(T); 
@@ -38,21 +38,24 @@ function [T, XT, error, sty_pct, sty_vec] = StructuredConditioned(T, Y, Y_test, 
 
         % initialise T
         if i == 1
-            if rho <= 2
-                T_curr = Y*X';
-            else
-                T_curr = (Y'\X')';
+            if ~warm_start
+
+                if rho <= 2
+                    T_curr = Y*X';
+                else
+                    T_curr = (Y'\X')';
+                end
+    
+                % fix non-singularity
+                [U, Sigma, V] = svd(T_curr, 'econ');
+    
+                sigmas = diag(Sigma);
+                tol = 1e-12 * sigmas(1);
+                sigmas = max(sigmas, tol);
+    
+                T_curr = U * diag(sigmas) * V';
             end
-
-            % fix non-singularity
-            [U, Sigma, V] = svd(T_curr, 'econ');
-
-            sigmas = diag(Sigma);
-            tol = 1e-12 * sigmas(1);
-            sigmas = max(sigmas, tol);
-
-            T_curr = U * diag(sigmas) * V';
-
+    
             % one unconstrained gradient step
             D_curr = (T_curr * Y - X) * Y';
 
@@ -63,17 +66,32 @@ function [T, XT, error, sty_pct, sty_vec] = StructuredConditioned(T, Y, Y_test, 
             T_ant = T_curr;
             T_curr = T_curr - alpha * D_curr;
 
+            if warm_start
+                % projection onto feasible space
+                T_curr = (T_curr + T_curr') / 2; % symmetry
+        
+                [Q, L] = eig(T_curr);
+                lambdas = get_spectrum_doubly(L, rho, tau);
+                T_curr = Q * diag(lambdas) * Q';
+            end
+
             % choose starting lambda for \ell_1 regularization term
 
-            T_temp = (T_curr + T_curr') / 2; 
+            % T_temp = (T_curr + T_curr') / 2; 
+            % 
+            % [Q, L] = eig(T_temp);
+            % lambdas = get_spectrum_doubly(L, rho, tau);
+            % T_temp = Q * diag(lambdas) * Q';
 
-            [Q, L] = eig(T_temp);
-            lambdas = get_spectrum_doubly(L, rho, tau);
-            T_temp = Q * diag(lambdas) * Q';
+            % if warm_start
+            %     lambda_start = lambda;
+            % else
+            %     lambda_start = 0.01 * max(max(abs(T_temp)));
+            % end
 
-            lambda_start = 0.01 * max(max(abs(T_temp)));
-
-            decreasing_lambdas = linspace(lambda_start, lambda, numiter);
+            % lambda_start = 0.01 * max(max(abs(T_temp)));
+ 
+            decreasing_lambdas = linspace(lambda, lambda, numiter);
 
             continue;
         end
@@ -96,7 +114,7 @@ function [T, XT, error, sty_pct, sty_vec] = StructuredConditioned(T, Y, Y_test, 
         % compute the transform
         T_ant = T_curr;
         T_curr = T_curr - alpha * D_curr;
-        %T_curr = X * Y_pinv; % exact solution
+        % T_curr = X * Y_pinv; % exact solution
 
         % soft-thersholding
         T_curr = sign(T_curr) .* max(abs(T_curr) - decreasing_lambdas(i - 1), 0);
@@ -118,11 +136,16 @@ function [T, XT, error, sty_pct, sty_vec] = StructuredConditioned(T, Y, Y_test, 
         curr_sty = nnz(T(:) ~= 0);
         sty_vec(i - 1) = 100 * curr_sty / total;
 
-        error.m1.tr(i - 1) = norm(X - T_curr * Y, 'fro');
-        error.m2.tr(i - 1) = norm(X - T_curr * Y, 'fro') / norm(T_curr * Y, 'fro');
-
-        error.m1.te(i - 1) = norm(X_test - T_curr * Y_test, 'fro');
-        error.m2.te(i - 1) = norm(X_test - T_curr * Y_test, 'fro') / norm(T_curr * Y_test, 'fro');
+        TY = T_curr * Y;
+        TY_test = T_curr * Y_test;
+        
+        norm_TY = norm(TY, 'fro');
+        norm_TY_test = norm(TY_test, 'fro');
+        
+        error.m1.tr(i - 1) = norm(X - TY, 'fro');
+        error.m2.tr(i - 1) = error.m1.tr(i - 1) / norm_TY;
+        error.m1.te(i - 1) = norm(X_test - TY_test, 'fro');
+        error.m2.te(i - 1) = error.m1.te(i - 1) / norm_TY_test;
     end
 
     total = numel(T);           
