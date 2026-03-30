@@ -65,7 +65,7 @@ function [T, XT, error, sty_pct, sty_vec] = DoublySparseConditionedTL(T, Y, Y_te
             T_ant = T_curr;
             T_curr = T_curr - alpha * D_curr;
 
-            % choose starting lambda for \ell_1 regularization term
+            % generate lambdas list
 
             T_temp = (T_curr + T_curr') / 2; 
 
@@ -77,7 +77,12 @@ function [T, XT, error, sty_pct, sty_vec] = DoublySparseConditionedTL(T, Y, Y_te
 
             lambda_start = max(abs(T_temp(:))) / alpha;
 
-            decreasing_lambdas = logspace(log(lambda_start), log(lambda), homotopy_steps);
+            magic_exponent = log(10); 
+            
+            actual_start = lambda_start ^ magic_exponent;
+            actual_end   = lambda ^ magic_exponent;
+            
+            decreasing_lambdas = logspace(log10(actual_start), log10(actual_end), homotopy_steps);
 
             continue;
         end
