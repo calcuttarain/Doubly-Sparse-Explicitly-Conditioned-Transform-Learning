@@ -5,15 +5,15 @@ addpath('TLAlgorithms/');
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Set parameters %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-n = 16;                                       % patch size 
+n = 64;                                       % patch size 
 
 T0 = 6;                                       % sparsity level for each representation
 
-numiter = 300;                               % Number of iterations for AM algorithm
+numiter = 3000;                               % Number of iterations for AM algorithm
 
 W0 = kron(dctmtx(sqrt(n)), dctmtx(sqrt(n)));  % 2D DCT initialization, canonical transform factor
 
-lambda = 0.000001;                        % parameter for \ell_1 regularization term                           
+lambda = 0.01;                        % parameter for \ell_1 regularization term                           
 
 lambda0 = 2.1e-7;                             % Bresler Method parameter
 % lambda0 = 2.1e-4;
@@ -51,8 +51,8 @@ baboon = struct2cell(load('img/Baboon/sigma5/I7.mat')); baboon = baboon{1};
 % concatenate
 [blocks_tr] = [blocks_barbara, blocks_couple, blocks_lena];
 [blocks_te] = [blocks_hill, blocks_man];
-blocks_tr = blocks_tr(1:16, :);
-blocks_te = blocks_te(1:16, :);
+% blocks_tr = blocks_tr(1:16, :);
+% blocks_te = blocks_te(1:16, :);
 
 % subtract the means
 br_tr = mean(blocks_tr); br_te = mean(blocks_te);

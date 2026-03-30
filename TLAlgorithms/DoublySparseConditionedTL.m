@@ -73,9 +73,11 @@ function [T, XT, error, sty_pct, sty_vec] = DoublySparseConditionedTL(T, Y, Y_te
             lambdas = get_spectrum_doubly(L, rho, tau);
             T_temp = Q * diag(lambdas) * Q';
 
-            lambda_start = 0.1 * max(max(abs(T_temp)));
+            homotopy_steps = min(1500, numiter);
 
-            decreasing_lambdas = linspace(lambda_start, lambda, numiter);
+            lambda_start = max(abs(T_temp(:))) / alpha;
+
+            decreasing_lambdas = logspace(log(lambda_start), log(lambda), homotopy_steps);
 
             continue;
         end
@@ -101,7 +103,12 @@ function [T, XT, error, sty_pct, sty_vec] = DoublySparseConditionedTL(T, Y, Y_te
         %T_curr = X * Y_pinv; % exact solution
 
         % soft-thersholding
-        T_curr = sign(T_curr) .* max(abs(T_curr) - decreasing_lambdas(i - 1), 0);
+        if i - 1 <= homotopy_steps
+            chosen_lambda = decreasing_lambdas(i - 1);
+        else
+            chosen_lambda = lambda;
+        end
+        T_curr = sign(T_curr) .* max(abs(T_curr) - alpha * chosen_lambda, 0);
 
         % projection onto feasible space
         T_curr = (T_curr + T_curr') / 2; % symmetry
