@@ -74,10 +74,10 @@ for i=1:numiter
     end
 
     %check for zero determinant
-    cll=1e-1;
-    while(abs(det(B)) <= 10^(-250))
-        B = B + ((rand(K,n) - 0.5)*cll);
-    end
+    % cll=1e-1;
+    % while(abs(det(B)) <= 10^(-250))
+    %     B = B + ((rand(K,n) - 0.5)*cll);
+    % end
 
     BY = B * Y;
     BY_test = B * Y_test;

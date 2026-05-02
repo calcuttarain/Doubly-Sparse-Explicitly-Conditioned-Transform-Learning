@@ -104,7 +104,13 @@ function [T, XT, error, sty_pct, sty_vec] = StructuredConditioned(T, Y, Y_test, 
             chosen_lambda = lambda;
         end
 
+        % diag_T = diag(diag(T_curr));
+
         T_curr = sign(T_curr) .* max(abs(T_curr) - alpha * chosen_lambda, 0);
+
+        % if nnz(T_curr) == n
+        %     T_curr = T_curr - diag(diag(T_curr)) + diag_T;
+        % end
 
         % projection onto feasible space
         T_curr = (T_curr + T_curr') / 2; % symmetry

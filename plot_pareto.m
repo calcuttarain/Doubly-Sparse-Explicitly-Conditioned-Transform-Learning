@@ -1,5 +1,5 @@
 clear; clc; close all;
-chosen_timestamp = "2026-04-30_1154";
+chosen_timestamp = "2026-04-27_2022";
 input_folder = "results_" + chosen_timestamp; 
 input_folder = fullfile("results", input_folder);
 target_dir = fullfile('results', "plots_" + chosen_timestamp, 'pareto');
@@ -7,7 +7,7 @@ if ~exist(char(target_dir), "dir")
     mkdir(char(target_dir));
 end
 files = dir(fullfile(input_folder, "results_*"));
-for k = 1:1
+for k = 1:length(files)
     current_file = files(k).name;
     full_path = fullfile(input_folder, current_file);
     

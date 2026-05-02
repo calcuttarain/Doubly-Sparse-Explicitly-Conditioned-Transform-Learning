@@ -5,8 +5,8 @@ addpath('utils/');
 
 %%%%%%%%%%%%%%%%%%%%%%%% Parameters %%%%%%%%%%%%%%%%%%%%%%%%
 
-% T0_list = [6, 8, 10];                                        % sparsity level for each representation
-T0_list = [20];                                              % sparsity level for each representation
+% T0_list = [6, 8, 10];                                      % sparsity level for each representation
+T0_list = [8];                                               % sparsity level for each representation
 
 % patch_size_list = [64, 121, 196, 256];                     % patch size, transform size
 
@@ -16,9 +16,9 @@ patch_size_list = [256];                                     % patch size, trans
 
 bresler_lambdas = 2.1 * logspace(-4, -14, 11);               % input \lambda parameter for Bresler method
 
-bresler_lambdas = 2.1e-6;                                   % input \lambda parameter for Bresler method
+bresler_lambdas = 2.1e-12;                                   % input \lambda parameter for Bresler method
 
-n_pareto_points = 1;                                        % number of points/trials for a pareto plot
+n_pareto_points = 1;                                         % number of points/trials for a pareto plot
 
 ell_1_lambda = 5000;                                         % input \lambda parameter for ell_1 penalization in the Structured Conditioned Method
 
@@ -26,13 +26,15 @@ ell_1_lambdas = linspace(10000, 100000, n_pareto_points);
 
 ell_1_lambdas = 1000;
 
-homotopy_steps = 50;
+homotopy_steps = 2000;
 
-clipping_eps = 10e-10;
+clipping_eps = 1e-14;
 
 T1_bresler = linspace(0.5, 0.1, n_pareto_points);             % input sparsity for Bresler method
 
-numiter = 2500;                                               % number of iterations for the Alternating Minimization algorithms with warm start
+T1_bresler = 0.8;
+
+numiter = 3000;                                               % number of iterations for the Alternating Minimization algorithms with warm start
 
 %%% datasets
 % input_folders_datasets = {'data', 'DIV2K_valid_HR_data'};
@@ -111,7 +113,7 @@ for ps_idx = 1:length(parameters_settings)
     % run methods
     for idx = 1:n_pareto_points
 
-        %%% Bresler Method
+        % Bresler Method
         tic;
         [W_bresler, ~, error_bresler] = StructuredBreslerCF(B0, YH2_train, YH2_test, numiter, l2_bresler, l3_bresler, T1_list(idx), STY_tr, STY_te);
         time_bresler = toc;
@@ -127,14 +129,16 @@ for ps_idx = 1:length(parameters_settings)
         results(idx).bresler_method.sty_pct = sty_pct;
         results(idx).bresler_method.time = time_bresler;
 
-        %%% get rho and tau
+        % get rho and tau
         rho = cond(W_bresler);
         tau = norm(W_bresler, 'fro');
 
         results(idx).rho = rho;
         results(idx).tau = tau;
 
-        %%% UnStructured Conditioned Method
+        rho
+
+        % UnStructured Conditioned Method
         tic;
         [T_usc, ~, error_usc] = UnstructuredConditioned(W0, YH_train, YH_test, numiter, STY_tr, STY_te, rho, tau);
         time_usc = toc;
@@ -145,17 +149,19 @@ for ps_idx = 1:length(parameters_settings)
         results(idx).unstructured_conditioned.error = error_usc;
         results(idx).unstructured_conditioned.time = time_usc;
 
-        % save(fullfile(folder, "long_results.mat"));
-        % 
-        % load(fullfile(fol, "long_results.mat"));
-
-        % ell_1_lambdas = 10000;
+        save(fullfile(folder, "long_results.mat"));
+        
+        load("results/results_2026-05-01_1102/long_results.mat", "results");
+        rho = results(idx).rho;
+        tau = results(idx).tau;
+        
+        % ell_1_lambdas = 9000;
         % 
         % homotopy_steps = 500;
 
         %%% Structured Conditioned Method
         tic;
-        [T_sc, ~, error_sc, sty_pct_sc, sty_vec_sc] = StructuredConditioned(W0, YH2_train, YH2_test, numiter, STY_tr, STY_te, rho, tau, ell_1_lambdas(idx), homotopy_steps, clipping_eps);
+        [T_sc, X_sc, error_sc, sty_pct_sc, sty_vec_sc] = StructuredConditioned(W0, YH2_train, YH2_test, numiter, STY_tr, STY_te, rho, tau, ell_1_lambdas(idx), homotopy_steps, clipping_eps);
         time_sc = toc;
 
         fprintf('-> Done Structured Conditioned with sparsity %.2f%% - iteration %d out of %d - %.2f seconds\n', sty_pct_sc, idx, n_pareto_points, time_sc);
@@ -166,6 +172,7 @@ for ps_idx = 1:length(parameters_settings)
         results(idx).structured_conditioned.homotopy_steps = homotopy_steps;
         results(idx).structured_conditioned.sty_pct = sty_pct_sc;
         results(idx).structured_conditioned.sty_vec = sty_vec_sc;
+        results(idx).structured_conditioned.clipping_eps = clipping_eps;
         results(idx).structured_conditioned.time = time_sc;
     end
 
