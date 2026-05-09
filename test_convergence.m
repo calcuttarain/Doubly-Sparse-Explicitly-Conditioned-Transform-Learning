@@ -1,5 +1,5 @@
 warning('off','MATLAB:rankDeficientMatrix');
-clear; clc; close all;
+clear; clc; %close all;
 rng(0);
 addpath('TLAlgorithms/');
 
@@ -9,14 +9,22 @@ n = 64;                                       % patch size
 
 T0 = 6;                                       % sparsity level for each representation
 
-numiter = 3000;                               % Number of iterations for AM algorithm
+numiter = 1000;                               % Number of iterations for AM algorithm
 
-W0 = kron(dctmtx(sqrt(n)), dctmtx(sqrt(n)));  % 2D DCT initialization, canonical transform factor
+W0 = kron(dctmtx(sqrt(n)), dctmtx(sqrt(n)));  % 2D DCT initialization, canonical transform factor                      
 
-lambda = 0.01;                        % parameter for \ell_1 regularization term                           
+%lambda0 = 2.1e-7;                            % Bresler Method parameter
+lambda0 = 2.1e-12;
 
-lambda0 = 2.1e-7;                             % Bresler Method parameter
-% lambda0 = 2.1e-4;
+
+% DoublySparseConditionedTL parameters
+lambda = 10;                               % parameter for \ell_1 regularization term
+
+homotopy_steps = 100;                          % number of steps with bigger \lambda
+
+debias_start = numiter - 100;                 % iteration from which the sparse structure is fixed
+clipping_eps = 10e-14;                         % post-projection clipping tolerance
+
 
 % Bresler Doubly Sparse Transform parameters
 T1 = round((0.25)*(n^2));                     % Bresler Doubly Sparse Transform sparsity percent
@@ -117,7 +125,7 @@ errors(3) = error_cond;
 
 %%%%%%%%%%%%%%%%%%%%%%% Structured Conditioned Method %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-[T_doubly_cond, X_doubly_cond, error_doubly_cond, sty_pct, sty_vec] = DoublySparseConditionedTL(W0, YH2_train, YH2_test, numiter, STY_tr, STY_te, rho, tau, lambda);
+[T_doubly_cond, X_doubly_cond, error_doubly_cond, sty_pct, sty_vec] = DoublySparseConditionedTL(W0, YH2_train, YH2_test, numiter, STY_tr, STY_te, rho, tau, lambda, homotopy_steps, debias_start, clipping_eps);
 fprintf('Structured Conditioned Method with %.2f%% Sparsity Done\n', sty_pct);
 
 errors(4) = error_doubly_cond;
@@ -140,9 +148,9 @@ end
 title_text = 'Train Data';
 plot_convergence(numiter, errors_train, errors2_train, labels, rho, tau, sty_pct, T0, title_text);
 
-title_text = 'Test Data';
-plot_convergence(numiter, errors_test, errors2_test, labels, rho, tau, sty_pct, T0, title_text);
+% title_text = 'Test Data';
+% plot_convergence(numiter, errors_test, errors2_test, labels, rho, tau, sty_pct, T0, title_text);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Sparsity %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-plot_sparsity(T_doubly_cond, numiter, errors(4).m1.tr, sty_vec, rho, tau, lambda, T0);
+%plot_sparsity(T_doubly_cond, numiter, errors(4).m1.tr, sty_vec, rho, tau, lambda, T0);

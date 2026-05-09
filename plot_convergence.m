@@ -37,6 +37,6 @@ function plot_convergence(numiter, errors, errors2, labels, kappa, tau, sty_pct,
         ',\ sparsity = ', num2str(sty_pct,'%.2f'), '\%$']}, ...
         'Interpreter','latex');
     
-    % exportgraphics(gcf, 'plots/convergence.pdf', 'ContentType', 'vector');
+    exportgraphics(gcf, 'convergence.pdf', 'ContentType', 'vector');
 
 end

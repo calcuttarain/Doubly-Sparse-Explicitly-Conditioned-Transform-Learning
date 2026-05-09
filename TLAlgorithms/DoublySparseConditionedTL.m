@@ -1,7 +1,5 @@
-function [T, XT, error, sty_pct, sty_vec] = DoublySparseConditionedTL(T, Y, Y_test, numiter, STY, STY_te, rho, tau, lambda)
+function [T, XT, error, sty_pct, sty_vec] = DoublySparseConditionedTL(T, Y, Y_test, numiter, STY, STY_te, rho, tau, lambda, homotopy_steps, debias_start, clipping_eps)
     addpath('TLAlgorithms/DoublyConditionedTLRoutines/');
-
-    rng(0);
 
     [K, n] = size(T); 
     XT = zeros(K, size(Y, 2)); 
@@ -15,8 +13,6 @@ function [T, XT, error, sty_pct, sty_vec] = DoublySparseConditionedTL(T, Y, Y_te
     STY = STY + ez; STY_te = STY_te + ez_te;
     Y = Y(:, ix); Y_test = Y_test(:, ix_te);
 
-    %Y_pinv = pinv(Y);
-
     error.m1.tr = zeros(1, numiter); error.m1.te = zeros(1, numiter);
     error.m2.tr = zeros(1, numiter); error.m2.te = zeros(1, numiter);
     sty_vec = zeros(1, numiter);
@@ -24,9 +20,8 @@ function [T, XT, error, sty_pct, sty_vec] = DoublySparseConditionedTL(T, Y, Y_te
     D_ant = zeros(n, n);
     T_ant = zeros(n, n);
     D_curr = zeros(n, n);
-    T_curr = T;
+    T_curr = eye(n);
     t_curr = 1;
-    t_ant = 1;
 
     for i = 1:numiter + 1
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Sparse Representation Update Step %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -62,69 +57,72 @@ function [T, XT, error, sty_pct, sty_vec] = DoublySparseConditionedTL(T, Y, Y_te
             alpha = get_alpha(T_curr, D_curr, T_ant, D_ant, Y, "exact_line_search");
 
             % compute the transform
+            T_ant_Y = T_curr;
             T_ant = T_curr;
             T_curr = T_curr - alpha * D_curr;
 
             % generate lambdas list
+            [U, S, V] = svd(T_curr);
+            sigmas = get_spectrum_doubly(S, rho, tau);
+            T_temp = U * diag(sigmas) * V';
 
-            T_temp = (T_curr + T_curr') / 2; 
+            %T_curr = T_temp;
 
-            [Q, L] = eig(T_temp);
-            lambdas = get_spectrum_doubly(L, rho, tau);
-            T_temp = Q * diag(lambdas) * Q';
-
-            homotopy_steps = min(1500, numiter);
-
-            lambda_start = max(abs(T_temp(:))) / alpha;
-
-            magic_exponent = log(10); 
+            lambda_start = max(abs(T_temp(:))) / alpha * 10e-2;
             
-            actual_start = lambda_start ^ magic_exponent;
-            actual_end   = lambda ^ magic_exponent;
-            
-            decreasing_lambdas = logspace(log10(actual_start), log10(actual_end), homotopy_steps);
+            decreasing_lambdas = logspace(log10(lambda_start), log10(lambda), homotopy_steps);
 
             continue;
         end
 
         % nesterov acceleration
-        beta = (t_ant - 1) / t_curr;
+        t_next = (1 + sqrt(1 + 4 * t_curr^2)) / 2;
+        beta = (t_curr - 1) / t_next;
 
-        T_curr = T_curr + beta * (T_curr - T_ant);
-  
-        t_ant = t_curr;
-        t_curr = (1 + sqrt(1 + 4 * t_ant^2)) / 2;
+        Y_k = T_curr + beta * (T_curr - T_ant);
+
+        t_curr = t_next;
 
         % compute the gradient at the current step
         D_ant = D_curr;
-        D_curr = (T_curr * Y - X) * Y';
+        D_curr = (Y_k * Y - X) * Y';
 
         % get alpha
-        alpha = get_alpha(T_curr, D_curr, T_ant, D_ant, Y, "barzilai_borwein");
+        alpha = get_alpha(Y_k, D_curr, T_ant_Y, D_ant, Y, "exact_line_search");
+        T_ant_Y = Y_k;
 
         % compute the transform
         T_ant = T_curr;
-        T_curr = T_curr - alpha * D_curr;
+        T_curr = Y_k - alpha * D_curr;
         %T_curr = X * Y_pinv; % exact solution
 
         % soft-thersholding
-        if i - 1 <= homotopy_steps
-            chosen_lambda = decreasing_lambdas(i - 1);
-        else
-            chosen_lambda = lambda;
+        if i <= debias_start
+            if i - 1 <= length(decreasing_lambdas)
+                chosen_lambda = decreasing_lambdas(i - 1);
+            else
+                chosen_lambda = lambda;
+            end
+            T_curr = sign(T_curr) .* max(abs(T_curr) - alpha * chosen_lambda, 0);
         end
-        T_curr = sign(T_curr) .* max(abs(T_curr) - alpha * chosen_lambda, 0);
 
         % projection onto feasible space
-        T_curr = (T_curr + T_curr') / 2; % symmetry
+        [U, S, V] = svd(T_curr);
+        sigmas = get_spectrum_doubly(S, rho, tau);
+        T_curr = U * diag(sigmas) * V';
 
-        [Q, L] = eig(T_curr);
-        lambdas = get_spectrum_doubly(L, rho, tau);
-        T_curr = Q * diag(lambdas) * Q';
-
-        % clipping
-        indices = abs(T_curr) <= 10e-7;
-        T_curr(indices) = 0;
+        % clipping / hard-thresholding
+        if i < debias_start
+            indices = abs(T_curr) <= clipping_eps;
+            T_curr(indices) = 0;
+        elseif i == debias_start
+            indices = abs(T_curr) <= clipping_eps;
+            T_curr(indices) = 0;
+            support_mask = (T_curr ~= 0);
+        else
+            T_curr = T_curr .* support_mask;
+        end
+        
 
         T = T_curr;
 
