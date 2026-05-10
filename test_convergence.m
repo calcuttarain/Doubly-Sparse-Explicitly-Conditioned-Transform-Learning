@@ -13,8 +13,9 @@ numiter = 1000;                               % Number of iterations for AM algo
 
 W0 = kron(dctmtx(sqrt(n)), dctmtx(sqrt(n)));  % 2D DCT initialization, canonical transform factor                      
 
+lambda0 = 2.1e-5;                            % Bresler Method parameter
 %lambda0 = 2.1e-7;                            % Bresler Method parameter
-lambda0 = 2.1e-12;
+%lambda0 = 2.1e-12;
 
 
 % DoublySparseConditionedTL parameters
@@ -22,7 +23,7 @@ lambda = 10;                               % parameter for \ell_1 regularization
 
 homotopy_steps = 100;                          % number of steps with bigger \lambda
 
-debias_start = numiter - 100;                 % iteration from which the sparse structure is fixed
+debias_start = 10000;                 % iteration from which the sparse structure is fixed
 clipping_eps = 10e-14;                         % post-projection clipping tolerance
 
 
@@ -57,7 +58,7 @@ baboon = struct2cell(load('img/Baboon/sigma5/I7.mat')); baboon = baboon{1};
 [blocks_baboon] = my_im2col(baboon, [sqrt(n), sqrt(n)], sqrt(n));
 
 % concatenate
-[blocks_tr] = [blocks_barbara, blocks_couple, blocks_lena];
+[blocks_tr] = [blocks_barbara, blocks_couple, blocks_cameraman];
 [blocks_te] = [blocks_hill, blocks_man];
 % blocks_tr = blocks_tr(1:16, :);
 % blocks_te = blocks_te(1:16, :);
@@ -148,8 +149,8 @@ end
 title_text = 'Train Data';
 plot_convergence(numiter, errors_train, errors2_train, labels, rho, tau, sty_pct, T0, title_text);
 
-% title_text = 'Test Data';
-% plot_convergence(numiter, errors_test, errors2_test, labels, rho, tau, sty_pct, T0, title_text);
+title_text = 'Test Data';
+plot_convergence(numiter, errors_test, errors2_test, labels, rho, tau, sty_pct, T0, title_text);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Sparsity %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
