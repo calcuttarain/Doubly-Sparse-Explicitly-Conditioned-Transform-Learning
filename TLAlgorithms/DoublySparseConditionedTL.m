@@ -1,3 +1,5 @@
+% Copyright (c) 2025-2026 Tudor Pistol <tudor.pistol@gmail.com>
+
 function [T, XT, error, sty_pct, sty_vec] = DoublySparseConditionedTL(T, Y, Y_test, numiter, STY, STY_te, rho, tau, lambda, homotopy_steps, debias_start, clipping_eps)
     addpath('TLAlgorithms/DoublyConditionedTLRoutines/');
 

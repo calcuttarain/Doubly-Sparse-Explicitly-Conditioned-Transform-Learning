@@ -1,3 +1,5 @@
+% Copyright (c) 2025-2026 Tudor Pistol <tudor.pistol@gmail.com>
+
 warning('off','MATLAB:rankDeficientMatrix');
 clear; clc; %close all;
 rng(0);
