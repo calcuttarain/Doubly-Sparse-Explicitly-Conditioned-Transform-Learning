@@ -1,4 +1,5 @@
 % Copyright (c) 2025-2026 Tudor Pistol <tudor.pistol@gmail.com>
+% This code is licensed under the MIT License.
 
 function alpha = get_alpha(T_curr, D_curr, T_ant, D_ant, Y, alpha_choice)
     switch alpha_choice

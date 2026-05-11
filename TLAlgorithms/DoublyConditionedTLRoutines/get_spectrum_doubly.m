@@ -1,4 +1,5 @@
 % Copyright (c) 2025-2026 Tudor Pistol <tudor.pistol@gmail.com>
+% This code is licensed under the MIT License.
 
 function [solution] = get_spectrum_doubly(L, rho, tau)
     d = diag(L);

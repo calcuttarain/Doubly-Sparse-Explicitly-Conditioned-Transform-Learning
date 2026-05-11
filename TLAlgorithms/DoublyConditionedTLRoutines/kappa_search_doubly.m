@@ -1,4 +1,5 @@
 % Copyright (c) 2025-2026 Tudor Pistol <tudor.pistol@gmail.com>
+% This code is licensed under the MIT License.
 
 function [k1, k2, l_star] = kappa_search_doubly(d, rho)
 
