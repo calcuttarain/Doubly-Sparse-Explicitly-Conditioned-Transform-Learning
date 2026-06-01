@@ -16,7 +16,7 @@ close all
 clear
 clc
 addpath('TLAlgorithms/');
-noisy_images = {'Cameraman' 'Couple' 'Hill' 'Baboon' 'Barbara'};
+noisy_images = {'Cameraman' 'Hill' 'Baboon' 'Barbara'};
 
 logfile = fopen('condtl_denoising.log','w');
 
