@@ -1,4 +1,6 @@
-function [B,XB,error]= ClosedFormBreslerDoublySparse(B, Y, Y_test, numiter, l2, l3, T1, STY, STY_te, cbb);
+function [B,XB,error]= ClosedFormBreslerDoublySparse(B, Y, Y_test, numiter, l2, l3, T1, STY, STY_te);
+
+cbb = 0;
 
 %This is an implementation of the transform learning algorithm with closed-form solutions for the sparse coding and transform update steps that was presented in the following papers:
 %1) S. Ravishankar and Y. Bresler, "Closed-form solutions within sparsifying transform learning," in Proc. IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP), 2013, pp. 5378-5382.
@@ -46,11 +48,11 @@ error.m2.tr = []; error.m2.te = [];
 for i=1:numiter
     
     %Sparse Coding Step
-    X1=(sparse(B))*q;
+    X1=B*q;
     [s]=sort(abs(X1),'descend');
     X = X1.*(bsxfun(@ge,abs(X1),s(STY)));
 
-    X1_te=(sparse(B))*q_te;
+    X1_te=B*q_te;
     [s_te]=sort(abs(X1_te),'descend');
     X_test = X1_te.*(bsxfun(@ge,abs(X1_te),s_te(STY_te)));
 %     X = X/norm(X, 'fro');
@@ -73,10 +75,10 @@ for i=1:numiter
     end
 
     %check for zero determinant
-    cll=1e-1;
-    while(abs(det(B)) <= 10^(-250))
-        B = B + ((rand(K,n) - 0.5)*cll);
-    end
+    % cll=1e-1;
+    % while(abs(det(B)) <= 10^(-250))
+    %     B = B + ((rand(K,n) - 0.5)*cll);
+    % end
 
     error.m1.tr = [error.m1.tr norm(X - B*Y, 'fro')];
     error.m2.tr = [error.m2.tr norm(X - B*Y, 'fro')/norm(B*Y, 'fro')];
