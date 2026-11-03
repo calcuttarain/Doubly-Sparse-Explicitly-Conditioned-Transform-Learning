@@ -10,11 +10,14 @@ This repository contains the MATLAB implementation for the _Learning Doubly Spar
 ## Citation
 Please cite this work as:
 ```bibtex
-@article{dsect2026,
-  title={Learning Doubly Sparse Explicitly Conditioned Transforms},
-  author={Pistol, Tudor},
-  journal={arXiv preprint arXiv:2606.10975},
-  year={2026}
+@article{Pistol2026,
+  title = {Learning Doubly Sparse Explicitly Conditioned Transforms},
+  author = {Pistol, Tudor},
+  journal = {Procedia Computer Science},
+  volume = {292},
+  pages = {7470--7479},
+  year = {2026},
+  doi = {10.1016/j.procs.2026.10.318}
 }
 ```
 
